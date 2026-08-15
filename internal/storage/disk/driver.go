@@ -206,11 +206,14 @@ func (d *Driver) PresignPut(ctx context.Context, key string, ttl time.Duration, 
 func (d *Driver) sign(key, method string, ttl time.Duration) string {
 	exp := time.Now().Add(ttl).Unix()
 	mac := hmac.New(sha256.New, d.secret)
-	fmt.Fprintf(mac, "%s\n%s\n%d", key, method, exp)
+	fmt.Fprintf(mac, "%s\n%s\n%s\n%d", d.root, key, method, exp)
 	return hex.EncodeToString(mac.Sum(nil)) + "." + strconv.FormatInt(exp, 10)
 }
 
-// VerifyToken checks an HMAC token against the raw endpoint contract.
+// VerifyToken checks an HMAC token against the raw endpoint contract. The
+// token is bound to this driver's root, so only the driver that actually
+// holds the bytes can verify it — diskRawVerify can't accidentally match a
+// different disk engine that shares the same secret.
 func (d *Driver) VerifyToken(key, method, token string) error {
 	parts := strings.SplitN(token, ".", 2)
 	if len(parts) != 2 {
@@ -224,7 +227,7 @@ func (d *Driver) VerifyToken(key, method, token string) error {
 		return errors.New("disk: token expired")
 	}
 	mac := hmac.New(sha256.New, d.secret)
-	fmt.Fprintf(mac, "%s\n%s\n%d", key, method, exp)
+	fmt.Fprintf(mac, "%s\n%s\n%s\n%d", d.root, key, method, exp)
 	want := hex.EncodeToString(mac.Sum(nil))
 	if !hmac.Equal([]byte(want), []byte(parts[0])) {
 		return errors.New("disk: bad signature")

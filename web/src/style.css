@@ -12,6 +12,16 @@
   * {
     box-sizing: border-box;
   }
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  select:not(:disabled),
+  label[for] {
+    cursor: pointer;
+  }
+  button:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
   /* Respect OS reduce motion (design/style-guide.md §Motion). */
   @media (prefers-reduced-motion: reduce) {
     *,

@@ -505,6 +505,7 @@ func bootstrapBackends(ctx context.Context, db *mongo.Database, reg *registry.Re
 			// Empty encrypted credentials (e.g. a setup-created disk backend)
 			// decrypt to nothing — that's not a failure, just no credentials.
 			if len(b.CredentialsEncrypted) > 0 {
+				log.Printf("bootstrap: SKIP backend %s (%s): decrypt failed", b.ID, b.Driver)
 				continue
 			}
 			credBytes = []byte("{}")

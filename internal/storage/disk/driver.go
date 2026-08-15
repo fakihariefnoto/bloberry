@@ -27,9 +27,10 @@ type Driver struct {
 }
 
 func New(root string, secret []byte) (*Driver, error) {
-	if err := os.MkdirAll(root, 0o750); err != nil {
-		return nil, fmt.Errorf("disk: mkdir root: %w", err)
-	}
+	// Do not fail at construction if the root can't be created right now
+	// (e.g. /var/lib on an unprivileged dev box) — the driver stays usable and
+	// the directory is created lazily on first write. Registration in the
+	// registry must not depend on a writable root.
 	return &Driver{root: root, secret: secret}, nil
 }
 

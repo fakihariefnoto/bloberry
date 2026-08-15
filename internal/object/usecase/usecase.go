@@ -75,11 +75,11 @@ func (u *usecase) backendFor(ctx context.Context, tenantID, backendID string) (*
 		be, err = u.repo.GetTenantBackend(ctx, tenantID)
 	}
 	if err != nil {
-		return nil, nil, httpx.NewError(httpx.ErrBackendUnreachable, 502)
+		return nil, nil, httpx.NewErrorContent(httpx.ErrBackendUnreachable, 502, "storage engine lookup failed: "+err.Error())
 	}
 	drv, err := u.registry.Get(be.ID)
 	if err != nil {
-		return nil, nil, httpx.NewError(httpx.ErrBackendUnreachable, 502)
+		return nil, nil, httpx.NewErrorContent(httpx.ErrBackendUnreachable, 502, "storage engine driver not ready: "+err.Error())
 	}
 	return be, drv, nil
 }

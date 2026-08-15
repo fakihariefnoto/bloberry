@@ -50,8 +50,8 @@ for (let band = 0; band < BANDS; band++) {
       band,
       x: 0, y: 0,
       phase: col * 0.5 + band * 2.1,
-      size: 15 + ((id % 3) * 3),
-      baseAlpha: 0.35 + 0.2 * Math.sin(band * 2 + col),
+      size: 12 + ((id % 3) * 2),
+      baseAlpha: 0.2 + 0.12 * Math.sin(band * 2 + col),
       el: null,
     })
   }
@@ -67,20 +67,23 @@ const packets: Packet[] = Array.from({ length: 18 }, () => ({
 
 function tick(now: number) {
   const c = canvas.value
-  if (!c) return
+  const wr = wrap.value
+  if (!c || !wr) return
   const ctx = c.getContext('2d')
   if (!ctx) return
 
-  const w = window.innerWidth
-  const h = window.innerHeight
+  // geometry is relative to the hero wrapper, not the viewport — the wave
+  // stays inside its container and never bleeds over lower cards
+  const w = wr.clientWidth || window.innerWidth
+  const h = wr.clientHeight || window.innerHeight
   const dpr = Math.min(window.devicePixelRatio || 1, 2)
   if (c.width !== w * dpr) c.width = w * dpr
   if (c.height !== h * dpr) c.height = h * dpr
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
   ctx.clearRect(0, 0, w, h)
 
-  // bands float in the mid-upper background
-  const bandY = [h * 0.22, h * 0.4, h * 0.58]
+  // three quiet bands, dimmed so cards below stay readable
+  const bandY = [h * 0.24, h * 0.44, h * 0.64]
   const spacing = COL_GAP
   const cols = Math.floor(w / spacing) + 2
   const t = reduced ? 0 : now / 2600
@@ -88,8 +91,11 @@ function tick(now: number) {
   // wave follows the mouse: a smooth bump that glides toward the cursor
   if (!reduced) {
     if (mouse.active) {
-      follow.x += (mouse.x - follow.x) * 0.08
-      follow.y += (mouse.y - follow.y) * 0.08
+      const rect = wr.getBoundingClientRect()
+      const mx = mouse.x - rect.left
+      const my = mouse.y - rect.top
+      follow.x += (mx - follow.x) * 0.08
+      follow.y += (my - follow.y) * 0.08
       bump.amp += (1 - bump.amp) * 0.06
     } else {
       bump.amp += (0 - bump.amp) * 0.03
@@ -104,13 +110,13 @@ function tick(now: number) {
     const wave2 = Math.sin(x / 47 - t * 1.4 + n.band) * 5
     let y = bandY[n.band] + wave + wave2
 
-    // gaussian bump under the cursor — the wave rises to follow the mouse
+    // gaussian bump under the cursor — a soft crest, never a strong push
     if (mouse.active && !reduced) {
       const dx = x - follow.x
-      const sigma = 190
+      const sigma = 200
       const g = Math.exp(-(dx * dx) / (2 * sigma * sigma))
-      const pull = (follow.y - y) * 0.5 // ease the crest toward the cursor height
-      y += bump.amp * (g * 70 + pull * g)
+      const pull = (follow.y - y) * 0.35
+      y += bump.amp * (g * 42 + pull * g)
     }
 
     n.x = x
@@ -226,7 +232,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="wrap" class="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden="true">
+  <div ref="wrap" class="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
     <canvas ref="canvas" class="absolute inset-0 h-full w-full" />
     <div
       v-for="n in nodes"

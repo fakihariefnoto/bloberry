@@ -52,8 +52,8 @@ function primaryCta() {
 
     <!-- Hero with storage constellation -->
     <section class="relative mx-auto max-w-6xl px-6 pb-24 pt-16 md:pt-24">
-      <!-- Abstract interconnected file network background -->
-      <div class="pointer-events-none absolute -inset-10">
+      <!-- Wave background — clipped to the hero, never overlapping lower cards -->
+      <div class="pointer-events-none absolute inset-0 overflow-hidden">
         <StorageConstellation />
       </div>
 

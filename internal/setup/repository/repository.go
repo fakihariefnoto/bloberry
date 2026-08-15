@@ -80,7 +80,7 @@ func (r *repo) InsertRootFolder(ctx context.Context, f *domain.Folder) error {
 
 func (r *repo) InsertBackend(ctx context.Context, b *domain.StorageBackend) error {
 	if b.ID == "" {
-		b.ID = crypto.NewID()
+		b.ID = crypto.NewStorageID(b.Driver)
 	}
 	if b.CreatedAt.IsZero() {
 		b.CreatedAt = time.Now().UTC()

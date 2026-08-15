@@ -67,6 +67,20 @@ func RandomID(n int) string {
 
 func NewID() string { return RandomID(12) }
 
+// NewStorageID returns a driver-prefixed storage engine ID. Same total length
+// as a plain NewID (20 chars): a 3-char type code identifying the driver, plus
+// 17 random chars. Makes engine IDs readable in logs, URLs and the UI.
+func NewStorageID(driver string) string {
+	code := map[string]string{
+		"s3": "S3-", "r2": "R2-", "oss": "OSS", "gcs": "GCS", "azblob": "AZB", "disk": "DSK",
+	}[driver]
+	if code == "" {
+		code = "STO"
+	}
+	// RandomID(11) yields 18 base32 chars; trim to 17 → 3 + 17 = 20 total.
+	return code + RandomID(11)[:17]
+}
+
 func NewToken(nBytes int) string {
 	b := make([]byte, nBytes)
 	if _, err := rand.Read(b); err != nil {

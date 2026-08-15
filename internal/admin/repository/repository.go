@@ -30,7 +30,7 @@ func New(db *mongo.Database) *repo {
 }
 
 func (r *repo) InsertBackend(ctx context.Context, b *domain.StorageBackend) error {
-	b.ID = crypto.NewID()
+	b.ID = crypto.NewStorageID(b.Driver)
 	b.CreatedAt = time.Now().UTC()
 	_, err := r.backends.InsertOne(ctx, b)
 	return err

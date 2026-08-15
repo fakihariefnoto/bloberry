@@ -3,7 +3,7 @@ import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ArrowUpRight, Boxes, KeyRound, ShieldCheck, Server, Globe, HardDrive, UploadCloud } from 'lucide-vue-next'
 import { api } from '../lib/api'
-import StorageGlobe from '../components/StorageGlobe.vue'
+import StorageConstellation from '../components/StorageConstellation.vue'
 
 const router = useRouter()
 const needsSetup = ref(false)
@@ -50,11 +50,11 @@ function primaryCta() {
       </div>
     </header>
 
-    <!-- Hero with storage globe -->
+    <!-- Hero with storage constellation -->
     <section class="relative mx-auto max-w-6xl px-6 pb-24 pt-16 md:pt-24">
-      <!-- Globe background -->
-      <div class="pointer-events-none absolute -inset-16">
-        <StorageGlobe />
+      <!-- Abstract interconnected file network background -->
+      <div class="pointer-events-none absolute -inset-10">
+        <StorageConstellation />
       </div>
 
       <div class="relative z-10 mx-auto max-w-3xl text-center">

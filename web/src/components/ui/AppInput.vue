@@ -11,6 +11,7 @@ const props = withDefaults(defineProps<{
   modelValue?: string
   icon?: any // lucide component
   dark?: boolean
+  autocomplete?: string
 }>(), { type: 'text', dark: false })
 
 const emit = defineEmits<{ 'update:modelValue': [string] }>()
@@ -39,7 +40,7 @@ const inputType = computed(() => (isPassword.value && show.value ? 'text' : prop
         class="h-full w-full bg-transparent text-sm outline-none placeholder:text-[#707777]"
         :class="dark ? 'text-white' : 'text-[var(--color-text)]'"
         :style="icon ? { paddingLeft: '2.5rem' } : { paddingLeft: '1rem' }"
-        :autocomplete="isPassword ? 'current-password' : undefined"
+        :autocomplete="autocomplete || (isPassword ? 'current-password' : undefined)"
         @input="emit('update:modelValue', ($event.target as HTMLInputElement).value)"
       />
       <button

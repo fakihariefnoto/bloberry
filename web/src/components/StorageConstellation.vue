@@ -4,9 +4,11 @@ import {
   Folder, FileText, HardDrive, KeyRound, Cloud, Database, Box, Server, ShieldCheck, UploadCloud, FileCode, FileArchive,
 } from 'lucide-vue-next'
 
-// Abstract network of storage glyphs spanning the whole viewport. Nodes
-// drift lazily; when the mouse moves near one it is pushed away smoothly
-// (spring physics) and eases back. Lines + flowing data packets on canvas.
+// Abstract network of storage glyphs spanning the whole viewport. Nodes drift
+// lazily; moving the mouse near one pushes it away smoothly (spring physics)
+// and it eases back. Links are degree-limited to keep the web clean, not a
+// tangled blob. Icon positions are written directly to the DOM each frame
+// (no Vue reactivity) so it stays at 60fps.
 
 const wrap = ref<HTMLDivElement | null>(null)
 const canvas = ref<HTMLCanvasElement | null>(null)
@@ -18,71 +20,48 @@ const ICONS = [Folder, FileText, HardDrive, KeyRound, Cloud, Database, Box, Serv
 interface IconNode {
   id: number
   icon: number
-  // base position in fractions of viewport
-  bx: number
+  bx: number // base fraction (of viewport)
   by: number
-  // current pixel pos + velocity
-  x: number
+  x: number // current px
   y: number
   vx: number
   vy: number
   phase: number
   size: number
   baseOpacity: number
+  el: HTMLElement | null
 }
 
-const COUNT = 30
-const nodes: IconNode[] = Array.from({ length: COUNT }, (_, i) => {
-  // even-ish scatter across the full viewport using a halton-like spread
-  const bx = 0.03 + 0.94 * ((i * 0.618033988749895) % 1)
-  const by = 0.06 + 0.88 * ((i * 0.381966011250105) % 1)
-  return {
-    id: i,
-    icon: (i * 5 + 2) % ICONS.length,
-    bx, by,
-    x: 0, y: 0, vx: 0, vy: 0,
-    phase: Math.random() * Math.PI * 2,
-    size: 15 + (i % 4) * 3,
-    baseOpacity: 0.45 + 0.25 * Math.random(),
-  }
-})
+const COUNT = 26
+const nodes: IconNode[] = Array.from({ length: COUNT }, (_, i) => ({
+  id: i,
+  icon: (i * 5 + 2) % ICONS.length,
+  bx: 0.04 + 0.92 * ((i * 0.618033988749895) % 1),
+  by: 0.08 + 0.84 * ((i * 0.381966011250105) % 1),
+  x: 0, y: 0, vx: 0, vy: 0,
+  phase: Math.random() * Math.PI * 2,
+  size: 15 + (i % 4) * 3,
+  baseOpacity: 0.5 + 0.25 * Math.random(),
+  el: null,
+}))
 
-interface Packet {
-  from: number
-  to: number
-  t: number
-  speed: number
-  glow: boolean
-}
-
-function makePackets(n: number): Packet[] {
-  const out: Packet[] = []
-  for (let i = 0; i < n; i++) {
-    out.push({
-      from: Math.floor(Math.random() * nodes.length),
-      to: Math.floor(Math.random() * nodes.length),
-      t: Math.random(),
-      speed: 0.004 + Math.random() * 0.008,
-      glow: Math.random() > 0.65,
-    })
-  }
-  return out
-}
-const packets = makePackets(16)
-
-// reactive positions the icon DOM binds to each frame
-interface P { x: number; y: number; o: number }
-const positions = ref<P[]>(nodes.map(() => ({ x: 0, y: 0, o: 0.6 })))
+interface Packet { from: number; to: number; t: number; speed: number; glow: boolean }
+const packets: Packet[] = Array.from({ length: 14 }, () => ({
+  from: Math.floor(Math.random() * COUNT),
+  to: Math.floor(Math.random() * COUNT),
+  t: Math.random(),
+  speed: 0.004 + Math.random() * 0.008,
+  glow: Math.random() > 0.65,
+}))
 
 const mouse = { x: -9999, y: -9999, active: false }
-
-const REPEL = 150 // push radius px
-const STRENGTH = 0.9
-const SPRING = 0.06 // ease back to base
-const DAMP = 0.82
+const REPEL = 140
+const SPRING = 0.055
+const DAMP = 0.84
+const MAX_LINKS = 3 // per-node link cap → clean web
 
 function tick(now: number) {
-  if (!wrap.value || !canvas.value) return
+  if (!canvas.value) return
   const ctx = canvas.value.getContext('2d')
   if (!ctx) return
 
@@ -94,10 +73,9 @@ function tick(now: number) {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
   ctx.clearRect(0, 0, w, h)
 
-  const drift = reduced ? 0 : (Math.sin((now / 2200) * 0.5) + 1) / 2
+  const drift = reduced ? 0 : (Math.sin(now / 2600) + 1) / 2
 
-  // physics: spring home + mouse repulsion
-  const px = positions.value
+  // physics + direct DOM writes (no Vue reactivity per frame)
   for (const n of nodes) {
     const tx = n.bx * w
     const ty = n.by * h
@@ -105,52 +83,56 @@ function tick(now: number) {
     if (mouse.active && !reduced) {
       const dx = n.x - mouse.x
       const dy = n.y - mouse.y
-      const d = Math.sqrt(dx * dx + dy * dy)
+      const d = Math.hypot(dx, dy)
       if (d < REPEL && d > 0.01) {
-        const f = (1 - d / REPEL) * STRENGTH
-        n.vx += (dx / d) * f * 3
-        n.vy += (dy / d) * f * 3
+        const f = (1 - d / REPEL) * 1.6
+        n.vx += (dx / d) * f
+        n.vy += (dy / d) * f
       }
     }
 
-    // ease back toward base (with lazy drift)
-    n.vx += (tx + n.bx * 14 * drift - n.x) * SPRING
-    n.vy += (ty + n.by * 10 * drift - n.y) * SPRING
+    n.vx += (tx + n.bx * 16 * drift - n.x) * SPRING
+    n.vy += (ty + n.by * 12 * drift - n.y) * SPRING
     n.vx *= DAMP
     n.vy *= DAMP
     n.x += n.vx
     n.y += n.vy
 
-    const dpx = mouse.active ? Math.hypot(n.x - mouse.x, n.y - mouse.y) : 9999
-    const near = mouse.active && dpx < REPEL ? 0.25 + (dpx / REPEL) * 0.35 : n.baseOpacity
-    px[n.id] = { x: n.x, y: n.y, o: near }
+    if (n.el) {
+      n.el.style.transform = `translate(${n.x - n.size / 2}px, ${n.y - n.size / 2}px)`
+      const dist = mouse.active ? Math.hypot(n.x - mouse.x, n.y - mouse.y) : REPEL + 1
+      const o = dist < REPEL ? 0.3 + (dist / REPEL) * 0.45 : n.baseOpacity
+      n.el.style.opacity = String(o)
+    }
   }
 
-  const linkDist = Math.min(w, h) * 0.28
-
-  // links
-  for (let i = 0; i < nodes.length; i++) {
-    for (let j = i + 1; j < nodes.length; j++) {
-      const a = px[i]
-      const b = px[j]
+  // degree-limited links
+  const linkDist = Math.min(w, h) * 0.24
+  const degree = new Array(COUNT).fill(0)
+  for (let i = 0; i < COUNT; i++) {
+    for (let j = i + 1; j < COUNT; j++) {
+      if (degree[i] >= MAX_LINKS || degree[j] >= MAX_LINKS) continue
+      const a = nodes[i]
+      const b = nodes[j]
       const d2 = (a.x - b.x) ** 2 + (a.y - b.y) ** 2
-      if (d2 < linkDist * linkDist) {
-        const d = Math.sqrt(d2)
-        const alpha = 0.13 * (1 - d / linkDist)
-        ctx.strokeStyle = `rgba(139,125,235,${alpha})`
-        ctx.lineWidth = 1
-        ctx.beginPath()
-        ctx.moveTo(a.x, a.y)
-        ctx.lineTo(b.x, b.y)
-        ctx.stroke()
-      }
+      if (d2 > linkDist * linkDist) continue
+      const d = Math.sqrt(d2)
+      const alpha = 0.16 * (1 - d / linkDist)
+      ctx.strokeStyle = `rgba(139,125,235,${alpha})`
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.moveTo(a.x, a.y)
+      ctx.lineTo(b.x, b.y)
+      ctx.stroke()
+      degree[i]++
+      degree[j]++
     }
   }
 
   // data packets
   for (const p of packets) {
-    const a = px[p.from]
-    const b = px[p.to]
+    const a = nodes[p.from]
+    const b = nodes[p.to]
     const d2 = (a.x - b.x) ** 2 + (a.y - b.y) ** 2
     if (d2 > linkDist * linkDist) continue
     const pxx = a.x + (b.x - a.x) * p.t
@@ -159,7 +141,7 @@ function tick(now: number) {
     const hx = a.x + (b.x - a.x) * head
     const hy = a.y + (b.y - a.y) * head
 
-    ctx.strokeStyle = p.glow ? 'rgba(139,125,235,0.55)' : 'rgba(167,139,250,0.4)'
+    ctx.strokeStyle = p.glow ? 'rgba(139,125,235,0.5)' : 'rgba(167,139,250,0.35)'
     ctx.lineWidth = 1.4
     ctx.beginPath()
     ctx.moveTo(pxx, pyy)
@@ -167,7 +149,7 @@ function tick(now: number) {
     ctx.stroke()
 
     const g = ctx.createRadialGradient(hx, hy, 0, hx, hy, 3.5)
-    g.addColorStop(0, p.glow ? 'rgba(196,181,253,0.95)' : 'rgba(139,125,235,0.7)')
+    g.addColorStop(0, p.glow ? 'rgba(196,181,253,0.9)' : 'rgba(139,125,235,0.65)')
     g.addColorStop(1, 'rgba(139,125,235,0)')
     ctx.fillStyle = g
     ctx.beginPath()
@@ -177,7 +159,7 @@ function tick(now: number) {
     p.t += p.speed
     if (p.t > 1) {
       p.from = p.to
-      p.to = Math.floor(Math.random() * nodes.length)
+      p.to = Math.floor(Math.random() * COUNT)
       p.t = 0
     }
   }
@@ -190,16 +172,30 @@ function onMouseMove(e: MouseEvent) {
   mouse.y = e.clientY
   mouse.active = true
 }
-
 function onMouseLeave() {
   mouse.active = false
+}
+
+function onResize() {
+  if (raf) cancelAnimationFrame(raf)
+  raf = requestAnimationFrame(tick)
 }
 
 onMounted(() => {
   const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
   reduced = mq.matches
+  // collect icon elements once
+  wrap.value?.querySelectorAll<HTMLElement>('[data-node]').forEach((el, i) => {
+    if (nodes[i]) nodes[i].el = el
+  })
+  // set initial positions (avoid top-left flash)
+  for (const n of nodes) {
+    n.x = n.bx * window.innerWidth
+    n.y = n.by * window.innerHeight
+  }
   window.addEventListener('mousemove', onMouseMove)
   window.addEventListener('mouseleave', onMouseLeave)
+  window.addEventListener('resize', onResize)
   raf = requestAnimationFrame(tick)
 })
 
@@ -207,6 +203,7 @@ onBeforeUnmount(() => {
   cancelAnimationFrame(raf)
   window.removeEventListener('mousemove', onMouseMove)
   window.removeEventListener('mouseleave', onMouseLeave)
+  window.removeEventListener('resize', onResize)
 })
 </script>
 
@@ -216,15 +213,14 @@ onBeforeUnmount(() => {
     <div
       v-for="n in nodes"
       :key="n.id"
-      class="absolute text-[var(--color-primary)] transition-opacity duration-300"
+      data-node
+      class="absolute left-0 top-0 will-change-transform text-[var(--color-primary)]"
       :style="{
-        left: `${positions[n.id].x}px`,
-        top: `${positions[n.id].y}px`,
-        transform: 'translate(-50%, -50%)',
-        opacity: positions[n.id].o,
+        width: `${n.size}px`,
+        height: `${n.size}px`,
       }"
     >
-      <component :is="ICONS[n.icon]" :style="{ width: `${n.size}px`, height: `${n.size}px` }" stroke-width="1.6" />
+      <component :is="ICONS[n.icon]" class="h-full w-full" stroke-width="1.6" />
     </div>
   </div>
 </template>

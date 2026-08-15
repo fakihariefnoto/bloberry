@@ -64,7 +64,14 @@ export function setUnauthenticatedHandler(fn: () => void) {
 // Single-flight refresh: concurrent 401s share one refresh promise.
 let refreshPromise: Promise<boolean> | null = null
 
-async function tryRefresh(): Promise<boolean> {
+// onTokenChanged notifies the auth store when the interceptor rotates tokens,
+// so store state stays in sync with the module token.
+let onTokenChanged: (() => void) | null = null
+export function setTokenChangedHandler(fn: () => void) {
+  onTokenChanged = fn
+}
+
+export async function tryRefresh(): Promise<boolean> {
   if (refreshPromise) return refreshPromise
   refreshPromise = (async () => {
     const refreshToken = localStorage.getItem(REFRESH_KEY)
@@ -84,6 +91,7 @@ async function tryRefresh(): Promise<boolean> {
       if (data.refresh_token) {
         localStorage.setItem(REFRESH_KEY, data.refresh_token)
       }
+      onTokenChanged?.()
       return true
     } catch {
       return false

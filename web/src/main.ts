@@ -4,7 +4,7 @@ import './style.css'
 import App from './App.vue'
 import router from './router'
 import { useAuthStore } from './stores/auth'
-import { setUnauthenticatedHandler } from './lib/api'
+import { setUnauthenticatedHandler, setTokenChangedHandler } from './lib/api'
 
 const app = createApp(App)
 app.use(createPinia())
@@ -13,9 +13,8 @@ app.use(router)
 const auth = useAuthStore()
 auth.bootstrap()
 
-// Rotate a stale/expired access token up front so a page refresh never
-// bounces through a 401 (the interceptor is the safety net for the rest).
-auth.restoreSession()
+// Keep the store in sync whenever the interceptor rotates tokens.
+setTokenChangedHandler(() => auth.syncFromStorage())
 
 // When a refresh attempt fails (expired/revoked session), clear local state
 // and send the user to login — without this, a page refresh with a stale
@@ -28,4 +27,10 @@ setUnauthenticatedHandler(() => {
   }
 })
 
-app.mount('#app')
+// Rotate a stale/expired access token BEFORE the first render, so a page
+// refresh or direct deep-link never flashes an unauthenticated state and never
+// races the interceptor's own refresh.
+auth.restoreSession().then(() => {
+  app.mount('#app')
+})
+

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { api, setToken } from '../lib/api'
+import { api, setToken, tryRefresh } from '../lib/api'
 
 interface User {
   id: string
@@ -98,12 +98,21 @@ export const useAuthStore = defineStore('auth', {
     },
     // Called once at app boot: if a stored access token is missing or expired,
     // rotate it via the refresh token so a page refresh never lands on a 401.
+    // Uses the interceptor's single-flight tryRefresh so this never races with
+    // concurrent 401-triggered refreshes (which would consume the rotating
+    // refresh token twice).
     async restoreSession() {
       if (!this.accessToken) return
       setToken(this.accessToken)
       if (isJwtExpired(this.accessToken)) {
-        await this.refresh()
+        const ok = await tryRefresh()
+        if (!ok) this.clear()
       }
+    },
+    syncFromStorage() {
+      this.accessToken = localStorage.getItem(ACCESS_KEY)
+      this.refreshToken = localStorage.getItem(REFRESH_KEY)
+      if (this.accessToken) setToken(this.accessToken)
     },
   },
 })
@@ -114,7 +123,11 @@ function isJwtExpired(token: string): boolean {
   try {
     const payload = token.split('.')[1]
     if (!payload) return false
-    const decoded = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')))
+    const b64 = payload.replace(/-/g, '+').replace(/_/g, '/')
+    const padded = b64 + '='.repeat((4 - (b64.length % 4)) % 4)
+    const bin = atob(padded)
+    const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0))
+    const decoded = JSON.parse(new TextDecoder().decode(bytes))
     if (typeof decoded.exp !== 'number') return false
     return decoded.exp * 1000 <= Date.now()
   } catch {

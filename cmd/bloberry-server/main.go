@@ -58,6 +58,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/joho/godotenv"
 	"github.com/go-chi/chi/v5/middleware"
+	"path"
 	"strings"
 	"github.com/redis/go-redis/v9"
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -424,7 +425,12 @@ func diskRawGet(repo rawObjectRepo, reg *registry.Registry, secret []byte) http.
 			return
 		}
 		defer rc.Close()
+		// The browser saves by Content-Disposition; without it it falls back to
+		// the URL's last segment (the storage key). Derive the real filename
+		// from the key's basename so share links download with the true name.
+		filename := path.Base(key)
 		w.Header().Set("Content-Type", "application/octet-stream")
+		w.Header().Set("Content-Disposition", "attachment; filename=\""+sanitizeFilename(filename)+"\"")
 		http.ServeContent(w, r, "", info.LastModified, ioReadSeeker(rc))
 	}
 }
@@ -453,6 +459,18 @@ func diskRawPut(repo rawObjectRepo, reg *registry.Registry, secret []byte, maxSi
 }
 
 var regInstance *registry.Registry
+
+// sanitizeFilename strips characters that would break a Content-Disposition
+// header (quotes, CR/LF injection).
+func sanitizeFilename(name string) string {
+	name = strings.Map(func(r rune) rune {
+		if r == '"' || r == '\\' || r == '\r' || r == '\n' {
+			return '_'
+		}
+		return r
+	}, name)
+	return name
+}
 
 // ioReadSeeker adapts an io.ReadCloser into an io.ReadSeeker for ServeContent
 // by buffering. Bounded by the disk driver's proxy path.

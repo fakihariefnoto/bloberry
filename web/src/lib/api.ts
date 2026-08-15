@@ -141,3 +141,23 @@ export const api = {
   patch: <T>(path: string, body?: unknown) => request<T>('PATCH', path, body),
   delete: <T>(path: string) => request<T>('DELETE', path),
 }
+
+// downloadUrl resolves a protected download endpoint to the actual URL the
+// browser can navigate to (a presigned/raw URL that is self-authorizing), so
+// plain anchor navigation — which carries no Authorization header — works.
+export async function downloadUrl(path: string): Promise<string> {
+  const res = await fetch(`${apiBase()}${path}`, {
+    method: 'GET',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    redirect: 'manual',
+  })
+  if (res.status >= 300 && res.status < 400) {
+    const loc = res.headers.get('Location')
+    if (loc) return loc.startsWith('http') ? loc : `${apiBase()}${loc}`
+  }
+  if (res.ok) {
+    // proxy path (no redirect) — return the endpoint itself; caller opens it
+    return `${apiBase()}${path}`
+  }
+  throw new ApiError(res.status, 'download_failed', `Download failed (${res.status})`)
+}

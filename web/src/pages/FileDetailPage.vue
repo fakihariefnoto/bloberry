@@ -2,7 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, Download, Globe, Lock } from 'lucide-vue-next'
-import { api } from '../lib/api'
+import { api, downloadUrl } from '../lib/api'
 import AppButton from '../components/ui/AppButton.vue'
 
 interface ObjectRec {
@@ -42,12 +42,17 @@ function formatBytes(n: number) {
 }
 
 async function download() {
-  const a = document.createElement('a')
-  a.href = `/objects/${fileId}/download`
-  a.download = obj.value?.name || 'download'
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
+  try {
+    const url = await downloadUrl(`/objects/${fileId}/download`)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = obj.value?.name || 'download'
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+  } catch (e) {
+    error.value = (e as Error).message
+  }
 }
 
 async function createShare() {

@@ -1,0 +1,19 @@
+# Bloberry — Caddy reverse proxy (infra/README.md §3).
+# One domain (short URLs live at /s/<slug> on the main domain, PRD D6).
+bloberry.example.com {
+	# Stream request and response bodies rather than buffering to disk (TRD R5).
+	reverse_proxy 127.0.0.1:8080 {
+		flush_interval -1
+	}
+
+	# Matches the API's own ceiling (backend/domains.md §9 Q1).
+	request_body {
+		max_size 5GB
+	}
+
+	encode gzip
+
+	log {
+		output file /var/log/caddy/bloberry.log
+	}
+}

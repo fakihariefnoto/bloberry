@@ -1,0 +1,33 @@
+[Unit]
+Description=Bloberry object storage service
+After=network-online.target mongod.service redis-server.service
+Wants=network-online.target
+Requires=mongod.service redis-server.service
+
+[Service]
+Type=notify
+User=bloberry
+Group=bloberry
+WorkingDirectory=/opt/bloberry
+ExecStart=/opt/bloberry/bloberry-server
+EnvironmentFile=/etc/bloberry/bloberry.env
+Restart=on-failure
+RestartSec=5s
+
+# Uploads and extraction are memory-hungry; bound them rather than OOM-killing
+# MongoDB, which shares this box.
+MemoryMax=2G
+LimitNOFILE=65536
+
+# Hardening — the process holds credentials to every connected bucket.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/bloberry
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+
+[Install]
+WantedBy=multi-user.target

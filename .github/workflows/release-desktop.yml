@@ -1,0 +1,69 @@
+name: release-desktop
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  macos:
+    # Wails cannot cross-compile (TRD R10). Billable GitHub-hosted runner.
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Build web
+        run: |
+          cd web && bun install && bun run build && cd ..
+      - name: Build + package .dmg (signed + notarized)
+        env:
+          APPLE_DEVELOPER_ID: ${{ secrets.APPLE_DEVELOPER_ID }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          go build -o /tmp/bloberry-desktop ./cmd/bloberry-desktop
+          # nfpm/GoReleaser packaging with codesign + notarize (desktop/tasks/07-macos.md)
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Build web
+        run: |
+          cd web && bun install && bun run build && cd ..
+      - name: Build + package NSIS
+        run: |
+          go build -o bloberry-desktop.exe ./cmd/bloberry-desktop
+          # Signing deferred (desktop/README.md) — SmartScreen consequence stated.
+
+  linux:
+    # The only desktop job on the free self-hosted runner.
+    runs-on: [self-hosted, linux, x64, bloberry]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Build web
+        run: |
+          cd web && bun install && bun run build && cd ..
+      - name: Build + package .deb/.rpm
+        run: |
+          go build -o /tmp/bloberry-desktop ./cmd/bloberry-desktop
+          # nfpm .deb/.rpm with .desktop entry + x-scheme-handler/bloberry (desktop/tasks/08-linux.md)

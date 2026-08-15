@@ -1,0 +1,69 @@
+name: ci
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: [self-hosted, linux, x64, bloberry]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # Build order (architecture.md §7 edge 2): openapi → web → go build.
+      # generate FAILS if the working tree changes — keeps spec-first honest.
+      - name: Generate (openapi codegen)
+        run: |
+          go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
+          make generate
+          git diff --exit-code || (echo "generated code drifted — run make generate and commit" && exit 1)
+
+      - name: Web build
+        run: |
+          cd web
+          bun install
+          bun run build
+
+      - name: Lint
+        run: |
+          go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+          make lint
+
+      - name: Security
+        run: |
+          go install github.com/securego/gosec/v2/cmd/gosec@latest
+          make security
+
+      - name: Test (incl. authz 100% branch gate)
+        run: make test
+
+      - name: Build (embeds web/dist)
+        run: make build
+
+  conformance:
+    runs-on: [self-hosted, linux, x64, bloberry]
+    services:
+      minio:
+        image: minio/minio
+        ports:
+          - 9000:9000
+        env:
+          MINIO_ROOT_USER: bloberry
+          MINIO_ROOT_PASSWORD: bloberry-secret
+        options: >-
+          --health-cmd "curl -f http://localhost:9000/minio/health/live"
+          --health-interval 10s
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+      - name: Storage conformance against MinIO
+        run: go test ./internal/storage/... -run Conformance -tags conformance

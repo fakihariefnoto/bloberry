@@ -1,0 +1,58 @@
+name: deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to deploy"
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, linux, x64, bloberry]
+    environment: ${{ github.event.inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # Index migrations BEFORE the restart: the new binary may issue queries
+      # that need an index the old schema lacks (infra/README.md §Workflows).
+      - name: Build
+        run: |
+          make generate
+          cd web && bun install && bun run build && cd ..
+          go build -o /tmp/bloberry-server ./cmd/bloberry-server
+
+      - name: Run pending Mongo index migrations
+        run: |
+          /tmp/bloberry-server -migrate
+
+      - name: Install binary
+        run: |
+          sudo install -o bloberry -g bloberry /tmp/bloberry-server /opt/bloberry/bloberry-server
+
+      - name: Restart service
+        run: |
+          sudo systemctl restart bloberry
+          # The runner's sudoers rule grants exactly this command.
+
+      - name: Wait for health
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:8080/healthz > /dev/null; then
+              echo "healthy"; exit 0
+            fi
+            sleep 2
+          done
+          echo "server did not become healthy" && exit 1

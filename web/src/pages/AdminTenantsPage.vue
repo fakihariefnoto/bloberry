@@ -7,7 +7,7 @@ import AppButton from '../components/ui/AppButton.vue'
 import PageHeader from '../components/ui/PageHeader.vue'
 import AppInput from '../components/ui/AppInput.vue'
 
-interface Tenant { id: string; name: string; slug: string; status: string; used_bytes: number; used_objects: number; default_backend_id?: string }
+interface Tenant { id: string; name: string; slug: string; status: string; used_bytes: number; used_objects: number; default_storage_id?: string }
 interface Backend { id: string; name: string; driver: string; health_status: string }
 
 const router = useRouter()
@@ -35,7 +35,7 @@ async function create() {
     await api.post('/tenants', {
       name: name.value,
       slug: slug.value,
-      default_backend_id: backendId.value || undefined,
+      default_storage_id: backendId.value || undefined,
     })
     showCreate.value = false
     name.value = ''
@@ -65,12 +65,12 @@ function backendLabel(b: Backend) {
           <AppInput v-model="slug" label="Slug" placeholder="acme" hint="Used in URLs and short links" />
 
           <div class="flex flex-col gap-1">
-            <label class="text-xs font-medium text-[var(--color-text-muted)]">Storage backend</label>
+            <label class="text-xs font-medium text-[var(--color-text-muted)]">Storage engine</label>
             <select v-model="backendId" class="h-12 w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm outline-none focus:border-[var(--color-primary)] focus:border-2">
               <option value="">Assign later</option>
               <option v-for="b in backends" :key="b.id" :value="b.id">{{ backendLabel(b) }}</option>
             </select>
-            <p v-if="!backends.length" class="text-xs text-[var(--color-warning)]">No storage backends registered yet — register one in Storage backends.</p>
+            <p v-if="!backends.length" class="text-xs text-[var(--color-warning)]">No storage engines registered yet — register one in Storage engines.</p>
           </div>
 
           <p v-if="error" class="rounded-[var(--radius-sm)] border border-[var(--color-error)] bg-[var(--color-error)]/10 px-3 py-2 text-xs text-[var(--color-error)]">{{ error }}</p>
@@ -100,8 +100,8 @@ function backendLabel(b: Backend) {
               <span :class="t.status === 'suspended' ? 'text-[var(--color-error)]' : 'text-[var(--color-success)]'">{{ t.status }}</span>
             </td>
             <td class="px-3 py-2.5">
-              <span v-if="t.default_backend_id" class="inline-flex items-center gap-1.5 text-xs text-[var(--color-text-muted)]">
-                <HardDrive class="h-3.5 w-3.5" /> {{ backends.find((b) => b.id === t.default_backend_id)?.name || t.default_backend_id.slice(0, 8) }}
+              <span v-if="t.default_storage_id" class="inline-flex items-center gap-1.5 text-xs text-[var(--color-text-muted)]">
+                <HardDrive class="h-3.5 w-3.5" /> {{ backends.find((b) => b.id === t.default_storage_id)?.name || t.default_storage_id.slice(0, 8) }}
               </span>
               <span v-else class="text-xs text-[var(--color-text-muted)]">—</span>
             </td>

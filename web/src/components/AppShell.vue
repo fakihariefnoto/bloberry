@@ -45,7 +45,7 @@ const platformNav = computed(() =>
   isPlatformAdmin.value
     ? [
         { name: 'admin-tenants', label: 'Tenants', icon: Building2 },
-        { name: 'admin-backends', label: 'Storage backends', icon: HardDrive },
+        { name: 'admin-backends', label: 'Storage engines', icon: HardDrive },
         { name: 'admin-usage', label: 'Install usage', icon: BarChart3 },
       ]
     : [],
@@ -80,7 +80,7 @@ const pageTitle = computed(() => {
     usage: 'Usage', 'tenant-settings': 'Tenant settings', profile: 'Profile',
     'account-settings': 'Account settings', 'pair-device': 'Pair a device',
     'admin-tenants': 'Tenants', 'admin-tenant-detail': 'Tenant',
-    'admin-backends': 'Storage backends', 'admin-backend-detail': 'Backend',
+    'admin-backends': 'Storage engines', 'admin-backend-detail': 'Backend',
     'admin-usage': 'Install usage',
   }
   return map[String(route.name)] || 'Bloberry'

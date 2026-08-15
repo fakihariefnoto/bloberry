@@ -405,7 +405,7 @@ paths:
                   type: integer
                 quota_objects:
                   type: integer
-                default_backend_id:
+                default_storage_id:
                   type: string
       responses:
         '201':
@@ -445,7 +445,7 @@ paths:
                   type: integer
                 quota_objects:
                   type: integer
-                default_backend_id:
+                default_storage_id:
                   type: string
                 status:
                   type: string
@@ -712,7 +712,7 @@ paths:
                   type: string
                 name:
                   type: string
-                backend_id:
+                storage_id:
                   type: string
                   description: Storage backend to upload to. Defaults to the tenant's backend.
                 size:

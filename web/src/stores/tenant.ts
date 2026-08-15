@@ -10,7 +10,7 @@ export interface Tenant {
   used_bytes: number
   used_objects: number
   status: string
-  default_backend_id?: string
+  default_storage_id?: string
 }
 
 export interface Membership {

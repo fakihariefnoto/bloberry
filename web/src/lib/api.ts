@@ -28,8 +28,17 @@ export class ApiError extends Error {
 let baseURL = import.meta.env.VITE_API_BASE || ''
 let token: string | null = null
 
+const ACCESS_KEY = 'bloberry.access'
+const REFRESH_KEY = 'bloberry.refresh'
+
 export function setToken(t: string | null) {
   token = t
+  if (t === null) {
+    localStorage.removeItem(ACCESS_KEY)
+    localStorage.removeItem(REFRESH_KEY)
+  } else {
+    localStorage.setItem(ACCESS_KEY, t)
+  }
 }
 
 // Runtime override for the Wails desktop shell, which serves the same build
@@ -45,10 +54,51 @@ function apiBase(): string {
   return baseURL
 }
 
+// onUnauthenticated is invoked when a refresh attempt fails (expired or
+// revoked session) so the app can clear state and redirect to login.
+let onUnauthenticated: (() => void) | null = null
+export function setUnauthenticatedHandler(fn: () => void) {
+  onUnauthenticated = fn
+}
+
+// Single-flight refresh: concurrent 401s share one refresh promise.
+let refreshPromise: Promise<boolean> | null = null
+
+async function tryRefresh(): Promise<boolean> {
+  if (refreshPromise) return refreshPromise
+  refreshPromise = (async () => {
+    const refreshToken = localStorage.getItem(REFRESH_KEY)
+    if (!refreshToken) return false
+    try {
+      const res = await fetch(`${apiBase()}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      })
+      if (!res.ok) return false
+      const env = (await res.json()) as Envelope<{ access_token: string; refresh_token: string }>
+      const data = env.data
+      if (!data?.access_token) return false
+      token = data.access_token
+      localStorage.setItem(ACCESS_KEY, data.access_token)
+      if (data.refresh_token) {
+        localStorage.setItem(REFRESH_KEY, data.refresh_token)
+      }
+      return true
+    } catch {
+      return false
+    } finally {
+      refreshPromise = null
+    }
+  })()
+  return refreshPromise
+}
+
 export async function request<T = unknown>(
   method: string,
   path: string,
   body?: unknown,
+  _retried = false,
 ): Promise<T> {
   const headers: Record<string, string> = {}
   if (body !== undefined) headers['Content-Type'] = 'application/json'
@@ -67,6 +117,15 @@ export async function request<T = unknown>(
     env = (await res.json()) as Envelope<T>
   } catch {
     env = null
+  }
+
+  // 401 + a refresh token available → rotate and retry once.
+  if (res.status === 401 && !_retried && localStorage.getItem(REFRESH_KEY)) {
+    const ok = await tryRefresh()
+    if (ok) {
+      return request<T>(method, path, body, true)
+    }
+    onUnauthenticated?.()
   }
 
   if (!res.ok) {

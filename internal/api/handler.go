@@ -734,7 +734,7 @@ func (h *Handler) GetFolderTree(w http.ResponseWriter, r *http.Request, folderId
 type presignReq struct {
 	FolderID    string `json:"folder_id"`
 	Name        string `json:"name"`
-	BackendID   string `json:"backend_id"`
+	BackendID   string `json:"storage_id"`
 	Size        int64  `json:"size"`
 	ContentType string `json:"content_type"`
 }

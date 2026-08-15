@@ -164,9 +164,9 @@ const scopeLabel = (b: Backend) => (b.tenant_id ? 'BYO tenant' : 'Install-level'
 
 <template>
   <div>
-    <PageHeader title="Storage backends" description="Credential sets per driver. Assign a tenant to one via its settings.">
+    <PageHeader title="Storage engines" description="Credential sets per driver. Assign a tenant to one via its settings.">
       <AppButton size="sm" @click="showCreate = !showCreate">
-        <Plus class="h-4 w-4" /> Register backend
+        <Plus class="h-4 w-4" /> Register storage engine
       </AppButton>
     </PageHeader>
 
@@ -174,14 +174,14 @@ const scopeLabel = (b: Backend) => (b.tenant_id ? 'BYO tenant' : 'Install-level'
     <div v-if="showCreate" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" @click.self="showCreate = false">
       <div class="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-[var(--radius-lg)] bg-[var(--color-surface-raised)] shadow-[var(--shadow-lg)]">
         <div class="flex items-center justify-between border-b border-[var(--color-border)] px-6 py-4">
-          <h2 class="text-lg font-semibold text-[var(--color-text)]">Register storage backend</h2>
+          <h2 class="text-lg font-semibold text-[var(--color-text)]">Register storage engine</h2>
           <button class="rounded p-1 text-[var(--color-text-muted)] hover:text-[var(--color-text)]" @click="showCreate = false">
             <X class="h-5 w-5" />
           </button>
         </div>
 
         <div class="flex-1 space-y-5 overflow-y-auto px-6 py-5">
-          <AppInput v-model="name" label="Name" placeholder="e.g. s3-eu-prod" hint="How this backend appears in the tenant dropdown" />
+          <AppInput v-model="name" label="Name" placeholder="e.g. s3-eu-prod" hint="How this storage engine appears in the tenant dropdown" />
 
           <div class="flex flex-col gap-1">
             <label class="text-xs font-medium text-[var(--color-text-muted)]">Provider</label>
@@ -253,7 +253,7 @@ const scopeLabel = (b: Backend) => (b.tenant_id ? 'BYO tenant' : 'Install-level'
         <div class="flex items-center justify-end gap-2 border-t border-[var(--color-border)] px-6 py-4">
           <AppButton variant="ghost" @click="showCreate = false">Cancel</AppButton>
           <AppButton :loading="submitting" :disabled="!canSubmit" @click="create">
-            <CheckCircle2 class="mr-2 h-4 w-4" /> Register backend
+            <CheckCircle2 class="mr-2 h-4 w-4" /> Register storage engine
           </AppButton>
         </div>
       </div>
@@ -305,7 +305,7 @@ const scopeLabel = (b: Backend) => (b.tenant_id ? 'BYO tenant' : 'Install-level'
           <tr v-if="!loading && !backends.length">
             <td colspan="5" class="px-4 py-12 text-center">
               <HardDrive class="mx-auto h-8 w-8 text-[var(--color-text-muted)]" />
-              <p class="mt-3 text-sm font-medium text-[var(--color-text)]">No storage backends yet</p>
+              <p class="mt-3 text-sm font-medium text-[var(--color-text)]">No storage engines yet</p>
               <p class="mt-1 text-xs text-[var(--color-text-muted)]">Register one to connect a provider.</p>
             </td>
           </tr>

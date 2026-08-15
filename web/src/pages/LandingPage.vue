@@ -265,7 +265,7 @@ function primaryCta() {
         <div class="relative rounded-2xl border border-white/10 bg-white/[0.02] p-7">
           <span class="bg-gradient-to-r from-[#a78bfa] to-[#8b7deb] bg-clip-text font-mono text-sm font-bold text-transparent">02</span>
           <h3 class="mt-4 text-lg font-semibold tracking-tight">Connect a provider</h3>
-          <p class="mt-2 text-sm leading-relaxed text-white/60">Register any storage backend once. Credentials are encrypted before they touch the database.</p>
+          <p class="mt-2 text-sm leading-relaxed text-white/60">Register any storage engine once. Credentials are encrypted before they touch the database.</p>
         </div>
         <div class="relative rounded-2xl border border-white/10 bg-white/[0.02] p-7">
           <span class="bg-gradient-to-r from-[#a78bfa] to-[#8b7deb] bg-clip-text font-mono text-sm font-bold text-transparent">03</span>

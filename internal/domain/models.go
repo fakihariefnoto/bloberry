@@ -47,7 +47,7 @@ type Tenant struct {
 	ID               string     `bson:"_id" json:"id"`
 	Name             string     `bson:"name" json:"name"`
 	Slug             string     `bson:"slug" json:"slug"`
-	DefaultBackendID string     `bson:"default_backend_id,omitempty" json:"default_backend_id,omitempty"`
+	DefaultBackendID string     `bson:"default_backend_id,omitempty" json:"default_storage_id,omitempty"`
 	QuotaBytes       int64      `bson:"quota_bytes" json:"quota_bytes"`
 	QuotaObjects     int64      `bson:"quota_objects" json:"quota_objects"`
 	UsedBytes        int64      `bson:"used_bytes" json:"used_bytes"`
@@ -135,7 +135,7 @@ type Object struct {
 	FolderID    string     `bson:"folder_id" json:"folder_id"`
 	Ancestors   []string   `bson:"ancestors" json:"ancestors"`
 	Name        string     `bson:"name" json:"name"`
-	BackendID   string     `bson:"backend_id" json:"backend_id"`
+	BackendID   string     `bson:"backend_id" json:"storage_id"`
 	StorageKey  string     `bson:"storage_key" json:"storage_key"`
 	State       string     `bson:"state" json:"state"`
 	SizeBytes   int64      `bson:"size_bytes" json:"size_bytes"`

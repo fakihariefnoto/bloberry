@@ -22,8 +22,8 @@ async function loadBackends() {
   loadingBackends.value = true
   try {
     backends.value = await api.get<Backend[]>('/admin/backends')
-    if (tenants.current?.default_backend_id) {
-      backendId.value = tenants.current.default_backend_id
+    if (tenants.current?.default_storage_id) {
+      backendId.value = tenants.current.default_storage_id
     }
   } catch { backends.value = [] } finally { loadingBackends.value = false }
 }
@@ -42,7 +42,7 @@ async function save() {
   saved.value = ''
   try {
     const payload: Record<string, unknown> = { name: name.value, quota_bytes: Number(quotaBytes.value) || 0 }
-    if (backendId.value) payload.default_backend_id = backendId.value
+    if (backendId.value) payload.default_storage_id = backendId.value
     await api.patch(`/tenants/${tenants.currentId}`, payload)
     saved.value = 'Saved.'
     await tenants.load()
@@ -59,9 +59,9 @@ async function save() {
         <AppInput v-model="name" label="Tenant name" placeholder="Acme Corp" />
         <AppInput v-model="quotaBytes" label="Quota (bytes, 0 = unlimited)" type="number" placeholder="0" />
 
-        <!-- Storage backend assignment -->
+        <!-- Storage engine assignment -->
         <div class="flex flex-col gap-1.5">
-          <label class="text-xs font-medium text-[var(--color-text-muted)]">Storage backend</label>
+          <label class="text-xs font-medium text-[var(--color-text-muted)]">Storage engine</label>
           <div v-if="loadingBackends" class="h-12 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] animate-pulse" />
           <select
             v-else
@@ -75,7 +75,7 @@ async function save() {
             <HardDrive class="h-3.5 w-3.5" />
             Applies to new objects. Existing files keep their current backend — switching never strands them.
           </p>
-          <p v-if="!backends.length" class="text-xs text-[var(--color-warning)]">No storage backends registered yet — ask a platform admin to add one.</p>
+          <p v-if="!backends.length" class="text-xs text-[var(--color-warning)]">No storage engines registered yet — ask a platform admin to add one.</p>
         </div>
 
         <p v-if="error" class="rounded-[var(--radius-sm)] border border-[var(--color-error)] bg-[var(--color-error)]/10 px-3 py-2 text-xs text-[var(--color-error)]">{{ error }}</p>

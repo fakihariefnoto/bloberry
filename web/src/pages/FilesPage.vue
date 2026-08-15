@@ -126,7 +126,7 @@ async function uploadFiles(files: File[]) {
       const res = await api.post<{ file_id: string; upload_url: string; headers?: Record<string, string> }>('/objects/presign-put', {
         folder_id: folderId.value || 'root',
         name: f.name,
-        backend_id: selectedBackend.value || undefined,
+        storage_id: selectedBackend.value || undefined,
         size: f.size,
         content_type: f.type,
       })
@@ -170,7 +170,7 @@ async function uploadFiles(files: File[]) {
           class="h-9 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 text-xs font-medium text-[var(--color-text-muted)] outline-none focus:border-[var(--color-primary)]"
           @change="switchBackend"
         >
-          <option value="">Default backend</option>
+          <option value="">Default storage engine</option>
           <option v-for="b in backends" :key="b.id" :value="b.id">{{ b.name }} ({{ b.driver }})</option>
         </select>
         <AppButton variant="secondary" size="sm" @click="load"><RefreshCw class="h-4 w-4" /> Refresh</AppButton>

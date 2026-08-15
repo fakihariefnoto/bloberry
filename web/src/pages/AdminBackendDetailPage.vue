@@ -41,7 +41,7 @@ const back = () => router.push({ name: 'admin-backends' })
 <template>
   <div>
     <button class="mb-4 flex items-center gap-1 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-primary)]" @click="back">
-      <ArrowLeft class="h-4 w-4" /> Back to backends
+      <ArrowLeft class="h-4 w-4" /> Back to storage engines
     </button>
 
     <p v-if="error" class="mb-3 text-sm text-[var(--color-error)]">{{ error }}</p>

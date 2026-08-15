@@ -5,7 +5,7 @@ import { ArrowLeft } from 'lucide-vue-next'
 import { api } from '../lib/api'
 import AppButton from '../components/ui/AppButton.vue'
 
-interface Tenant { id: string; name: string; slug: string; status: string; quota_bytes: number; quota_objects: number; used_bytes: number; used_objects: number; default_backend_id?: string }
+interface Tenant { id: string; name: string; slug: string; status: string; quota_bytes: number; quota_objects: number; used_bytes: number; used_objects: number; default_storage_id?: string }
 
 const route = useRoute()
 const router = useRouter()

@@ -1,0 +1,6 @@
+import{c as a}from"./createLucideIcon-CjuveTbj.js";import{d as r,c as n,k as e,l,e as o,w as c,C as m,b as i,p as d}from"./index-CsEw7i2h.js";/**
+ * @license lucide-vue-next v1.0.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */const p=a("file-question-mark",[["path",{d:"M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z",key:"1oefj6"}],["path",{d:"M12 17h.01",key:"p32p05"}],["path",{d:"M9.1 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3",key:"mhlwft"}]]),x={class:"flex min-h-screen flex-col items-center justify-center bg-[var(--color-background)] px-4 text-center"},v=r({__name:"NotFoundPage",setup(u){return(f,t)=>{const s=m("RouterLink");return i(),n("div",x,[e(l(p),{class:"h-12 w-12 text-[var(--color-text-muted)]"}),t[1]||(t[1]=o("h1",{class:"mt-4 text-lg font-semibold text-[var(--color-text)]"},"Page not found",-1)),t[2]||(t[2]=o("p",{class:"mt-1 max-w-sm text-sm text-[var(--color-text-muted)]"}," That address doesn't exist on this install. ",-1)),e(s,{to:"/app",class:"mt-4 text-sm text-[var(--color-primary)] hover:underline"},{default:c(()=>[...t[0]||(t[0]=[d("Back to Files",-1)])]),_:1})])}}});export{v as default};

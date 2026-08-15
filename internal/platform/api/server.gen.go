@@ -523,12 +523,13 @@ type MultipartInitJSONBody struct {
 
 // PresignPutJSONBody defines parameters for PresignPut.
 type PresignPutJSONBody struct {
-	// BackendId Storage backend to upload to. Defaults to the tenant's backend.
-	BackendId   *string `json:"backend_id,omitempty"`
 	ContentType *string `json:"content_type,omitempty"`
 	FolderId    string  `json:"folder_id"`
 	Name        string  `json:"name"`
 	Size        int64   `json:"size"`
+
+	// StorageId Storage backend to upload to. Defaults to the tenant's backend.
+	StorageId *string `json:"storage_id,omitempty"`
 }
 
 // CompleteUploadJSONBody defines parameters for CompleteUpload.
@@ -586,7 +587,7 @@ type CreateShortLinkJSONBody struct {
 
 // CreateTenantJSONBody defines parameters for CreateTenant.
 type CreateTenantJSONBody struct {
-	DefaultBackendId *string `json:"default_backend_id,omitempty"`
+	DefaultStorageId *string `json:"default_storage_id,omitempty"`
 	Name             string  `json:"name"`
 	QuotaBytes       *int    `json:"quota_bytes,omitempty"`
 	QuotaObjects     *int    `json:"quota_objects,omitempty"`
@@ -595,7 +596,7 @@ type CreateTenantJSONBody struct {
 
 // UpdateTenantJSONBody defines parameters for UpdateTenant.
 type UpdateTenantJSONBody struct {
-	DefaultBackendId *string                     `json:"default_backend_id,omitempty"`
+	DefaultStorageId *string                     `json:"default_storage_id,omitempty"`
 	Name             *string                     `json:"name,omitempty"`
 	QuotaBytes       *int                        `json:"quota_bytes,omitempty"`
 	QuotaObjects     *int                        `json:"quota_objects,omitempty"`

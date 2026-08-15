@@ -66,8 +66,14 @@ func NewUsecase(d Deps) object.Usecase {
 
 var _ object.Usecase = (*usecase)(nil)
 
-func (u *usecase) backendFor(ctx context.Context, tenantID string) (*domain.StorageBackend, storage.Driver, error) {
-	be, err := u.repo.GetTenantBackend(ctx, tenantID)
+func (u *usecase) backendFor(ctx context.Context, tenantID, backendID string) (*domain.StorageBackend, storage.Driver, error) {
+	var be *domain.StorageBackend
+	var err error
+	if backendID != "" {
+		be, err = u.repo.GetBackend(ctx, backendID)
+	} else {
+		be, err = u.repo.GetTenantBackend(ctx, tenantID)
+	}
 	if err != nil {
 		return nil, nil, httpx.NewError(httpx.ErrBackendUnreachable, 502)
 	}
@@ -78,7 +84,7 @@ func (u *usecase) backendFor(ctx context.Context, tenantID string) (*domain.Stor
 	return be, drv, nil
 }
 
-func (u *usecase) PresignPut(ctx context.Context, tenantID, folderID, name string, size int64, contentType string, principalID string) (*object.PresignResult, error) {
+func (u *usecase) PresignPut(ctx context.Context, tenantID, folderID, name, backendID string, size int64, contentType string, principalID string) (*object.PresignResult, error) {
 	if size > u.maxSize {
 		return nil, httpx.NewError(httpx.ErrPayloadTooLarge, 413)
 	}
@@ -89,7 +95,7 @@ func (u *usecase) PresignPut(ctx context.Context, tenantID, folderID, name strin
 	if err := u.quota.CheckQuota(ctx, tenantID, size, 1); err != nil {
 		return nil, err
 	}
-	be, drv, err := u.backendFor(ctx, tenantID)
+	be, drv, err := u.backendFor(ctx, tenantID, backendID)
 	if err != nil {
 		return nil, err
 	}
@@ -142,13 +148,13 @@ func (u *usecase) Complete(ctx context.Context, tenantID, fileID, etag string) (
 	return obj, nil
 }
 
-func (u *usecase) DirectUpload(ctx context.Context, tenantID, folderID, name, contentType string, r io.Reader, size int64, principalID string) (*domain.Object, error) {
+func (u *usecase) DirectUpload(ctx context.Context, tenantID, folderID, name, backendID, contentType string, r io.Reader, size int64, principalID string) (*domain.Object, error) {
 	// proxy path: bytes through Bloberry
-	res, err := u.PresignPut(ctx, tenantID, folderID, name, size, contentType, principalID)
+	res, err := u.PresignPut(ctx, tenantID, folderID, name, backendID, size, contentType, principalID)
 	if err != nil {
 		return nil, err
 	}
-	be, drv, err := u.backendFor(ctx, tenantID)
+	be, drv, err := u.backendFor(ctx, tenantID, backendID)
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +179,7 @@ func (u *usecase) DirectUpload(ctx context.Context, tenantID, folderID, name, co
 	return obj, nil
 }
 
-func (u *usecase) MultipartInit(ctx context.Context, tenantID, folderID, name string, size int64, contentType string, principalID string) (*object.PresignResult, error) {
+func (u *usecase) MultipartInit(ctx context.Context, tenantID, folderID, name, backendID string, size int64, contentType string, principalID string) (*object.PresignResult, error) {
 	if size > u.maxSize {
 		return nil, httpx.NewError(httpx.ErrPayloadTooLarge, 413)
 	}
@@ -184,7 +190,7 @@ func (u *usecase) MultipartInit(ctx context.Context, tenantID, folderID, name st
 	if err := u.quota.CheckQuota(ctx, tenantID, size, 1); err != nil {
 		return nil, err
 	}
-	be, drv, err := u.backendFor(ctx, tenantID)
+	be, drv, err := u.backendFor(ctx, tenantID, backendID)
 	if err != nil {
 		return nil, err
 	}

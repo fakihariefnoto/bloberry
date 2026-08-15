@@ -712,6 +712,9 @@ paths:
                   type: string
                 name:
                   type: string
+                backend_id:
+                  type: string
+                  description: Storage backend to upload to. Defaults to the tenant's backend.
                 size:
                   type: integer
                   format: int64
@@ -1020,6 +1023,17 @@ paths:
       responses:
         '200':
           description: Stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+  /backends:
+    get:
+      operationId: listAvailableBackends
+      summary: List storage backends available to the current tenant
+      responses:
+        '200':
+          description: Available backends (install-level + tenant-owned)
           content:
             application/json:
               schema:

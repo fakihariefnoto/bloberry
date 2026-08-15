@@ -58,6 +58,25 @@ func (r *repo) ListBackends(ctx context.Context) ([]domain.StorageBackend, error
 	return out, nil
 }
 
+// ListForTenant returns install-level backends (tenant_id null) plus the
+// tenant's own BYO backends (tenant_id == tenantID).
+func (r *repo) ListForTenant(ctx context.Context, tenantID string) ([]domain.StorageBackend, error) {
+	cur, err := r.backends.Find(ctx, bson.M{"$or": []bson.M{
+		{"tenant_id": bson.M{"$exists": false}},
+		{"tenant_id": nil},
+		{"tenant_id": tenantID},
+	}})
+	if err != nil {
+		return nil, err
+	}
+	defer cur.Close(ctx)
+	var out []domain.StorageBackend
+	if err := cur.All(ctx, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (r *repo) UpdateBackend(ctx context.Context, b *domain.StorageBackend) error {
 	_, err := r.backends.ReplaceOne(ctx, bson.M{"_id": b.ID}, b)
 	return err

@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Folder, FileText, ChevronRight, Upload, RefreshCw, MoreHorizontal, Globe, HardDrive } from 'lucide-vue-next'
 import { api } from '../lib/api'
+import { useTenantStore } from '../stores/tenant'
 import AppButton from '../components/ui/AppButton.vue'
 
 interface FolderRec { id: string; name: string; path: string }
@@ -10,6 +11,7 @@ interface ObjectRec { id: string; name: string; size_bytes: number; visibility: 
 
 const route = useRoute()
 const router = useRouter()
+const tenants = useTenantStore()
 
 const folderId = computed(() => (route.params.folderId as string) || '')
 const folders = ref<FolderRec[]>([])
@@ -32,7 +34,10 @@ async function load() {
   }
 }
 
-onMounted(load)
+onMounted(() => {
+  load()
+  loadBackends()
+})
 watch(folderId, load)
 
 function openFolder(id: string) {
@@ -56,8 +61,48 @@ const uploading = ref(false)
 const uploads = ref<{ name: string; progress: number; state: string; error?: string }[]>([])
 const fileInput = ref<HTMLInputElement | null>(null)
 
+// Backend switcher — a tenant can write to any install-level or own backend.
+interface BackendRec { id: string; name: string; driver: string; tenant_id?: string }
+const backends = ref<BackendRec[]>([])
+const selectedBackend = ref('')
+const currentBackendName = ref('')
+
+async function loadBackends() {
+  try {
+    backends.value = await api.get<BackendRec[]>('/backends')
+    const saved = localStorage.getItem(`bloberry.backend.${tenants.currentId || ''}`) || ''
+    if (saved && backends.value.some((b) => b.id === saved)) {
+      selectedBackend.value = saved
+    } else {
+      selectedBackend.value = ''
+    }
+    updateBackendName()
+  } catch { backends.value = [] }
+}
+
+function switchBackend() {
+  localStorage.setItem(`bloberry.backend.${tenants.currentId || ''}`, selectedBackend.value)
+  updateBackendName()
+}
+
+function updateBackendName() {
+  const b = backends.value.find((x) => x.id === selectedBackend.value)
+  currentBackendName.value = b ? `${b.name} (${b.driver})` : ''
+}
+
 function openPicker() {
   fileInput.value?.click()
+}
+
+async function createFolder() {
+  const name = window.prompt('New folder name')
+  if (!name || !name.trim()) return
+  try {
+    await api.post('/folders', { name: name.trim(), parent_id: folderId.value || 'root' })
+    load()
+  } catch (e) {
+    alert((e as Error).message)
+  }
 }
 
 async function onFileInput(e: Event) {
@@ -81,6 +126,7 @@ async function uploadFiles(files: File[]) {
       const res = await api.post<{ file_id: string; upload_url: string; headers?: Record<string, string> }>('/objects/presign-put', {
         folder_id: folderId.value || 'root',
         name: f.name,
+        backend_id: selectedBackend.value || undefined,
         size: f.size,
         content_type: f.type,
       })
@@ -117,8 +163,18 @@ async function uploadFiles(files: File[]) {
         <ChevronRight v-if="folderId" class="h-4 w-4 text-[var(--color-text-muted)]" />
         <span v-if="folderId" class="font-semibold text-[var(--color-text)]">…</span>
       </div>
-      <div class="flex gap-2">
+      <div class="flex items-center gap-2">
+        <select
+          v-if="backends.length"
+          v-model="selectedBackend"
+          class="h-9 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 text-xs font-medium text-[var(--color-text-muted)] outline-none focus:border-[var(--color-primary)]"
+          @change="switchBackend"
+        >
+          <option value="">Default backend</option>
+          <option v-for="b in backends" :key="b.id" :value="b.id">{{ b.name }} ({{ b.driver }})</option>
+        </select>
         <AppButton variant="secondary" size="sm" @click="load"><RefreshCw class="h-4 w-4" /> Refresh</AppButton>
+        <AppButton variant="secondary" size="sm" @click="createFolder"><Folder class="h-4 w-4" /> New folder</AppButton>
         <input ref="fileInput" type="file" multiple class="hidden" @change="onFileInput" />
         <AppButton size="sm" :disabled="uploading" @click="openPicker"><Upload class="h-4 w-4" /> Upload</AppButton>
       </div>
@@ -133,7 +189,9 @@ async function uploadFiles(files: File[]) {
     >
       <Upload class="mx-auto h-6 w-6 text-[var(--color-text-muted)]" />
       <p class="mt-2 text-sm text-[var(--color-text)]">Drag files here or press Upload</p>
-      <p class="mt-1 text-xs text-[var(--color-text-muted)]">Max 5 GB per file</p>
+      <p class="mt-1 text-xs text-[var(--color-text-muted)]">
+        Max 5 GB per file<span v-if="currentBackendName"> · uploading to {{ currentBackendName }}</span>
+      </p>
     </div>
 
     <p v-if="error" class="mt-3 text-sm text-[var(--color-error)]">{{ error }}</p>

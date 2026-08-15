@@ -527,6 +527,8 @@ type MultipartInitJSONBody struct {
 
 // PresignPutJSONBody defines parameters for PresignPut.
 type PresignPutJSONBody struct {
+	// BackendId Storage backend to upload to. Defaults to the tenant's backend.
+	BackendId   *string `json:"backend_id,omitempty"`
 	ContentType *string `json:"content_type,omitempty"`
 	FolderId    string  `json:"folder_id"`
 	Name        string  `json:"name"`
@@ -1149,6 +1151,11 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /auth/totp/provision (the `ProvisionTotp` operationId).
 	ProvisionTotp(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListAvailableBackends List storage backends available to the current tenant
+	//
+	// Corresponds with GET /backends (the `ListAvailableBackends` operationId).
+	ListAvailableBackends(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CreateFolderWithBody Create a folder
 	//
@@ -2394,6 +2401,21 @@ func (c *Client) EnableTotp(ctx context.Context, body EnableTotpJSONRequestBody,
 // Corresponds with POST /auth/totp/provision (the `ProvisionTotp` operationId).
 func (c *Client) ProvisionTotp(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewProvisionTotpRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListAvailableBackends List storage backends available to the current tenant
+//
+// Corresponds with GET /backends (the `ListAvailableBackends` operationId).
+func (c *Client) ListAvailableBackends(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListAvailableBackendsRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -4754,6 +4776,33 @@ func NewProvisionTotpRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
+// NewListAvailableBackendsRequest constructs an http.Request for the ListAvailableBackends method
+func NewListAvailableBackendsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/backends")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewCreateFolderRequest calls the generic CreateFolder builder with application/json body
 func NewCreateFolderRequest(server string, body CreateFolderJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -6979,6 +7028,13 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /auth/totp/provision (the `ProvisionTotp` operationId).
 	ProvisionTotpWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ProvisionTotpResponse, error)
 
+	// ListAvailableBackendsWithResponse List storage backends available to the current tenant
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /backends (the `ListAvailableBackends` operationId).
+	ListAvailableBackendsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListAvailableBackendsResponse, error)
+
 	// CreateFolderWithBodyWithResponse Create a folder
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -8857,6 +8913,47 @@ func (r ProvisionTotpResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ProvisionTotpResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListAvailableBackendsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Envelope
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListAvailableBackendsResponse) GetJSON200() *Envelope {
+	return r.JSON200
+}
+
+// GetBody returns the raw response body bytes
+func (r ListAvailableBackendsResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListAvailableBackendsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListAvailableBackendsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListAvailableBackendsResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -11433,6 +11530,19 @@ func (c *ClientWithResponses) ProvisionTotpWithResponse(ctx context.Context, req
 	return ParseProvisionTotpResponse(rsp)
 }
 
+// ListAvailableBackendsWithResponse List storage backends available to the current tenant
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /backends (the `ListAvailableBackends` operationId).
+func (c *ClientWithResponses) ListAvailableBackendsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListAvailableBackendsResponse, error) {
+	rsp, err := c.ListAvailableBackends(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListAvailableBackendsResponse(rsp)
+}
+
 // CreateFolderWithBodyWithResponse Create a folder
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -13208,6 +13318,32 @@ func ParseProvisionTotpResponse(rsp *http.Response) (*ProvisionTotpResponse, err
 	}
 
 	response := &ProvisionTotpResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Envelope
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListAvailableBackendsResponse parses an HTTP response from a ListAvailableBackendsWithResponse call
+func ParseListAvailableBackendsResponse(rsp *http.Response) (*ListAvailableBackendsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListAvailableBackendsResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}

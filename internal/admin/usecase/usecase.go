@@ -71,6 +71,12 @@ func (u *usecase) ListBackends(ctx context.Context) ([]domain.StorageBackend, er
 	return u.repo.ListBackends(ctx)
 }
 
+// ListAvailable returns the backends a tenant can write to: install-level
+// (tenant_id null) plus the tenant's own BYO backends.
+func (u *usecase) ListAvailable(ctx context.Context, tenantID string) ([]domain.StorageBackend, error) {
+	return u.repo.ListForTenant(ctx, tenantID)
+}
+
 func (u *usecase) DeleteBackend(ctx context.Context, id string) error {
 	n, err := u.repo.CountTenantsOnBackend(ctx, id)
 	if err != nil {

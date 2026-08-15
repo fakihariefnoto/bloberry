@@ -523,6 +523,8 @@ type MultipartInitJSONBody struct {
 
 // PresignPutJSONBody defines parameters for PresignPut.
 type PresignPutJSONBody struct {
+	// BackendId Storage backend to upload to. Defaults to the tenant's backend.
+	BackendId   *string `json:"backend_id,omitempty"`
 	ContentType *string `json:"content_type,omitempty"`
 	FolderId    string  `json:"folder_id"`
 	Name        string  `json:"name"`
@@ -848,6 +850,9 @@ type ServerInterface interface {
 	// ProvisionTotp Provision a TOTP secret (shown exactly once)
 	// (POST /auth/totp/provision)
 	ProvisionTotp(w http.ResponseWriter, r *http.Request)
+	// ListAvailableBackends List storage backends available to the current tenant
+	// (GET /backends)
+	ListAvailableBackends(w http.ResponseWriter, r *http.Request)
 	// CreateFolder Create a folder
 	// (POST /folders)
 	CreateFolder(w http.ResponseWriter, r *http.Request)
@@ -1187,6 +1192,12 @@ func (_ Unimplemented) EnableTotp(w http.ResponseWriter, r *http.Request) {
 // ProvisionTotp Provision a TOTP secret (shown exactly once)
 // (POST /auth/totp/provision)
 func (_ Unimplemented) ProvisionTotp(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListAvailableBackends List storage backends available to the current tenant
+// (GET /backends)
+func (_ Unimplemented) ListAvailableBackends(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -2090,6 +2101,20 @@ func (siw *ServerInterfaceWrapper) ProvisionTotp(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ProvisionTotp(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAvailableBackends operation middleware
+func (siw *ServerInterfaceWrapper) ListAvailableBackends(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAvailableBackends(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -3450,6 +3475,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/shares/{linkId}/stats", wrapper.ShareLinkStats)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/backends", wrapper.ListAvailableBackends)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/applications", wrapper.ListApplications)

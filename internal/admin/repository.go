@@ -13,6 +13,8 @@ type Repository interface {
 	InsertBackend(ctx context.Context, b *domain.StorageBackend) error
 	GetBackend(ctx context.Context, id string) (*domain.StorageBackend, error)
 	ListBackends(ctx context.Context) ([]domain.StorageBackend, error)
+	// ListForTenant returns install-level backends plus those owned by the tenant.
+	ListForTenant(ctx context.Context, tenantID string) ([]domain.StorageBackend, error)
 	UpdateBackend(ctx context.Context, b *domain.StorageBackend) error
 	DeleteBackend(ctx context.Context, id string) error
 	CountTenantsOnBackend(ctx context.Context, backendID string) (int64, error)
@@ -28,6 +30,7 @@ type Usecase interface {
 	CreateBackend(ctx context.Context, name, driverType string, config, credentials, rateCard map[string]interface{}) (*domain.StorageBackend, error)
 	GetBackend(ctx context.Context, id string) (*domain.StorageBackend, error)
 	ListBackends(ctx context.Context) ([]domain.StorageBackend, error)
+	ListAvailable(ctx context.Context, tenantID string) ([]domain.StorageBackend, error)
 	DeleteBackend(ctx context.Context, id string) error
 	CheckHealth(ctx context.Context, id string) (*domain.StorageBackend, error)
 	InstallStats(ctx context.Context) (*InstallStats, error)

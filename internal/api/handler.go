@@ -734,6 +734,7 @@ func (h *Handler) GetFolderTree(w http.ResponseWriter, r *http.Request, folderId
 type presignReq struct {
 	FolderID    string `json:"folder_id"`
 	Name        string `json:"name"`
+	BackendID   string `json:"backend_id"`
 	Size        int64  `json:"size"`
 	ContentType string `json:"content_type"`
 }
@@ -749,7 +750,7 @@ func (h *Handler) PresignPut(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, "bad_request")
 		return
 	}
-	res, err := h.Objects.PresignPut(r.Context(), p.TenantID, req.FolderID, req.Name, req.Size, req.ContentType, p.ID)
+	res, err := h.Objects.PresignPut(r.Context(), p.TenantID, req.FolderID, req.Name, req.BackendID, req.Size, req.ContentType, p.ID)
 	if err != nil {
 		httpx.WriteError(w, err)
 		return
@@ -788,7 +789,8 @@ func (h *Handler) DirectUpload(w http.ResponseWriter, r *http.Request, params se
 	if params.ContentType != nil {
 		contentType = *params.ContentType
 	}
-	obj, err := h.Objects.DirectUpload(r.Context(), p.TenantID, params.FolderId, params.Name, contentType, r.Body, r.ContentLength, p.ID)
+	backendID := r.URL.Query().Get("backend_id")
+	obj, err := h.Objects.DirectUpload(r.Context(), p.TenantID, params.FolderId, params.Name, backendID, contentType, r.Body, r.ContentLength, p.ID)
 	if err != nil {
 		httpx.WriteError(w, err)
 		return
@@ -803,7 +805,7 @@ func (h *Handler) MultipartInit(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, "bad_request")
 		return
 	}
-	res, err := h.Objects.MultipartInit(r.Context(), p.TenantID, req.FolderID, req.Name, req.Size, req.ContentType, p.ID)
+	res, err := h.Objects.MultipartInit(r.Context(), p.TenantID, req.FolderID, req.Name, req.BackendID, req.Size, req.ContentType, p.ID)
 	if err != nil {
 		httpx.WriteError(w, err)
 		return
@@ -1278,6 +1280,20 @@ func (h *Handler) EstimatedCost(w http.ResponseWriter, r *http.Request) {
 }
 
 // --- admin ---
+
+func (h *Handler) ListAvailableBackends(w http.ResponseWriter, r *http.Request) {
+	p := principalOf(r)
+	if p == nil {
+		httpx.Error(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	bs, err := h.Admin.ListAvailable(r.Context(), p.TenantID)
+	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	data(w, http.StatusOK, bs)
+}
 
 func (h *Handler) ListBackends(w http.ResponseWriter, r *http.Request) {
 	if !requireAdmin(w, r) {

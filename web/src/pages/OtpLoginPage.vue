@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { Mail, KeyRound, ArrowRight, Boxes } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
 import AppInput from '../components/ui/AppInput.vue'
 import AppButton from '../components/ui/AppButton.vue'
@@ -38,18 +39,31 @@ async function verify() {
 </script>
 
 <template>
-  <div class="flex min-h-screen items-center justify-center bg-[var(--color-background)] px-4">
-    <div class="w-full max-w-sm rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-raised)] p-6 shadow-[var(--shadow-md)]">
-      <h1 class="text-xl font-bold text-[var(--color-text)]">Email login code</h1>
-      <p class="mt-1 text-sm text-[var(--color-text-muted)]">We'll email you a 6-digit code.</p>
-
-      <div v-if="!sent" class="mt-6 flex flex-col gap-4">
-        <AppInput v-model="email" label="Email" type="email" :error="error" />
-        <AppButton @click="request">Send code</AppButton>
+  <div class="flex min-h-screen items-center justify-center bg-[#012624] px-4">
+    <div class="w-full max-w-sm">
+      <div class="mb-8 text-center">
+        <span class="mx-auto flex h-12 w-12 items-center justify-center rounded-[16px] bg-[#003734]">
+          <Boxes class="h-6 w-6 text-[#cbfffc]" />
+        </span>
+        <h1 class="mt-4 text-[28px] font-medium leading-[1.0] tracking-[-0.02em] text-white">Email login code</h1>
+        <p class="mt-2 text-sm text-[#bbc7c6]">We'll email you a 6-digit code.</p>
       </div>
-      <div v-else class="mt-6 flex flex-col gap-4">
-        <AppInput v-model="code" label="6-digit code" :error="error" />
-        <AppButton :loading="loading" @click="verify">Verify</AppButton>
+
+      <div class="rounded-[16px] bg-[#003734] p-8">
+        <div v-if="!sent" class="flex flex-col gap-4">
+          <AppInput v-model="email" label="Email" type="email" :icon="Mail" dark :error="error" />
+          <AppButton variant="gradient" @click="request">
+            Send code
+            <ArrowRight class="ml-2 h-4 w-4" />
+          </AppButton>
+        </div>
+        <div v-else class="flex flex-col gap-4">
+          <AppInput v-model="code" label="6-digit code" :icon="KeyRound" dark :error="error" />
+          <AppButton variant="gradient" :loading="loading" @click="verify">
+            Verify
+            <ArrowRight class="ml-2 h-4 w-4" />
+          </AppButton>
+        </div>
       </div>
     </div>
   </div>

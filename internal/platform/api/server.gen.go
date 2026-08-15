@@ -560,6 +560,15 @@ type SetVisibilityJSONBody struct {
 // SetVisibilityJSONBodyVisibility defines parameters for SetVisibility.
 type SetVisibilityJSONBodyVisibility string
 
+// RunSetupJSONBody defines parameters for RunSetup.
+type RunSetupJSONBody struct {
+	DisplayName *string             `json:"display_name,omitempty"`
+	Email       openapi_types.Email `json:"email"`
+	Password    string              `json:"password"`
+	TenantName  string              `json:"tenant_name"`
+	TenantSlug  string              `json:"tenant_slug"`
+}
+
 // CreateShareLinkJSONBody defines parameters for CreateShareLink.
 type CreateShareLinkJSONBody struct {
 	ObjectId string `json:"object_id"`
@@ -710,6 +719,9 @@ type MultipartPresignPartJSONRequestBody MultipartPresignPartJSONBody
 
 // SetVisibilityJSONRequestBody defines body for SetVisibility for application/json ContentType.
 type SetVisibilityJSONRequestBody SetVisibilityJSONBody
+
+// RunSetupJSONRequestBody defines body for RunSetup for application/json ContentType.
+type RunSetupJSONRequestBody RunSetupJSONBody
 
 // CreateShareLinkJSONRequestBody defines body for CreateShareLink for application/json ContentType.
 type CreateShareLinkJSONRequestBody CreateShareLinkJSONBody
@@ -914,6 +926,12 @@ type ServerInterface interface {
 	// ResolveShortLink Resolve a short URL (HTML/redirect, not the envelope)
 	// (GET /s/{slug})
 	ResolveShortLink(w http.ResponseWriter, r *http.Request, slug string)
+	// RunSetup One-time first-run setup (creates platform admin, tenant, disk backend)
+	// (POST /setup)
+	RunSetup(w http.ResponseWriter, r *http.Request)
+	// SetupStatus Whether the install still needs its one-time setup
+	// (GET /setup/status)
+	SetupStatus(w http.ResponseWriter, r *http.Request)
 	// ListShareLinks List the current tenant's share links
 	// (GET /shares)
 	ListShareLinks(w http.ResponseWriter, r *http.Request)
@@ -1325,6 +1343,18 @@ func (_ Unimplemented) SetVisibility(w http.ResponseWriter, r *http.Request, fil
 // ResolveShortLink Resolve a short URL (HTML/redirect, not the envelope)
 // (GET /s/{slug})
 func (_ Unimplemented) ResolveShortLink(w http.ResponseWriter, r *http.Request, slug string) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// RunSetup One-time first-run setup (creates platform admin, tenant, disk backend)
+// (POST /setup)
+func (_ Unimplemented) RunSetup(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// SetupStatus Whether the install still needs its one-time setup
+// (GET /setup/status)
+func (_ Unimplemented) SetupStatus(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -2706,6 +2736,34 @@ func (siw *ServerInterfaceWrapper) ResolveShortLink(w http.ResponseWriter, r *ht
 	handler.ServeHTTP(w, r)
 }
 
+// RunSetup operation middleware
+func (siw *ServerInterfaceWrapper) RunSetup(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RunSetup(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetupStatus operation middleware
+func (siw *ServerInterfaceWrapper) SetupStatus(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetupStatus(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListShareLinks operation middleware
 func (siw *ServerInterfaceWrapper) ListShareLinks(w http.ResponseWriter, r *http.Request) {
 
@@ -3467,6 +3525,12 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/health", wrapper.Health)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/setup/status", wrapper.SetupStatus)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/setup", wrapper.RunSetup)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/s/{slug}", wrapper.ResolveShortLink)

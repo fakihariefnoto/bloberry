@@ -564,6 +564,15 @@ type SetVisibilityJSONBody struct {
 // SetVisibilityJSONBodyVisibility defines parameters for SetVisibility.
 type SetVisibilityJSONBodyVisibility string
 
+// RunSetupJSONBody defines parameters for RunSetup.
+type RunSetupJSONBody struct {
+	DisplayName *string             `json:"display_name,omitempty"`
+	Email       openapi_types.Email `json:"email"`
+	Password    string              `json:"password"`
+	TenantName  string              `json:"tenant_name"`
+	TenantSlug  string              `json:"tenant_slug"`
+}
+
 // CreateShareLinkJSONBody defines parameters for CreateShareLink.
 type CreateShareLinkJSONBody struct {
 	ObjectId string `json:"object_id"`
@@ -714,6 +723,9 @@ type MultipartPresignPartJSONRequestBody MultipartPresignPartJSONBody
 
 // SetVisibilityJSONRequestBody defines body for SetVisibility for application/json ContentType.
 type SetVisibilityJSONRequestBody SetVisibilityJSONBody
+
+// RunSetupJSONRequestBody defines body for RunSetup for application/json ContentType.
+type RunSetupJSONRequestBody RunSetupJSONBody
 
 // CreateShareLinkJSONRequestBody defines body for CreateShareLink for application/json ContentType.
 type CreateShareLinkJSONRequestBody CreateShareLinkJSONBody
@@ -1368,6 +1380,25 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /s/{slug} (the `ResolveShortLink` operationId).
 	ResolveShortLink(ctx context.Context, slug string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RunSetupWithBody One-time first-run setup (creates platform admin, tenant, disk backend)
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /setup (the `RunSetup` operationId).
+	RunSetupWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RunSetup One-time first-run setup (creates platform admin, tenant, disk backend)
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /setup (the `RunSetup` operationId).
+	RunSetup(ctx context.Context, body RunSetupJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetupStatus Whether the install still needs its one-time setup
+	//
+	// Corresponds with GET /setup/status (the `SetupStatus` operationId).
+	SetupStatus(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListShareLinks List the current tenant's share links
 	//
@@ -2964,6 +2995,55 @@ func (c *Client) SetVisibility(ctx context.Context, fileId FileId, body SetVisib
 // Corresponds with GET /s/{slug} (the `ResolveShortLink` operationId).
 func (c *Client) ResolveShortLink(ctx context.Context, slug string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewResolveShortLinkRequest(c.Server, slug)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RunSetupWithBody One-time first-run setup (creates platform admin, tenant, disk backend)
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /setup (the `RunSetup` operationId).
+func (c *Client) RunSetupWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRunSetupRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RunSetup One-time first-run setup (creates platform admin, tenant, disk backend)
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /setup (the `RunSetup` operationId).
+func (c *Client) RunSetup(ctx context.Context, body RunSetupJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRunSetupRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetupStatus Whether the install still needs its one-time setup
+//
+// Corresponds with GET /setup/status (the `SetupStatus` operationId).
+func (c *Client) SetupStatus(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetupStatusRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -5697,6 +5777,73 @@ func NewResolveShortLinkRequest(server string, slug string) (*http.Request, erro
 	return req, nil
 }
 
+// NewRunSetupRequest calls the generic RunSetup builder with application/json body
+func NewRunSetupRequest(server string, body RunSetupJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewRunSetupRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewRunSetupRequestWithBody constructs an http.Request for the RunSetup method, with any body, and a specified content type
+func NewRunSetupRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/setup")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewSetupStatusRequest constructs an http.Request for the SetupStatus method
+func NewSetupStatusRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/setup/status")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewListShareLinksRequest constructs an http.Request for the ListShareLinks method
 func NewListShareLinksRequest(server string) (*http.Request, error) {
 	var err error
@@ -7090,6 +7237,27 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /s/{slug} (the `ResolveShortLink` operationId).
 	ResolveShortLinkWithResponse(ctx context.Context, slug string, reqEditors ...RequestEditorFn) (*ResolveShortLinkResponse, error)
+
+	// RunSetupWithBodyWithResponse One-time first-run setup (creates platform admin, tenant, disk backend)
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /setup (the `RunSetup` operationId).
+	RunSetupWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RunSetupResponse, error)
+
+	// RunSetupWithResponse One-time first-run setup (creates platform admin, tenant, disk backend)
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /setup (the `RunSetup` operationId).
+	RunSetupWithResponse(ctx context.Context, body RunSetupJSONRequestBody, reqEditors ...RequestEditorFn) (*RunSetupResponse, error)
+
+	// SetupStatusWithResponse Whether the install still needs its one-time setup
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /setup/status (the `SetupStatus` operationId).
+	SetupStatusWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*SetupStatusResponse, error)
 
 	// ListShareLinksWithResponse List the current tenant's share links
 	//
@@ -9734,6 +9902,95 @@ func (r ResolveShortLinkResponse) ContentType() string {
 	return ""
 }
 
+type RunSetupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Envelope
+	// JSON409 the response for an HTTP 409 `application/json` response
+	JSON409 *Conflict
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r RunSetupResponse) GetJSON200() *Envelope {
+	return r.JSON200
+}
+
+// GetJSON409 returns the response for an HTTP 409 `application/json` response
+func (r RunSetupResponse) GetJSON409() *Conflict {
+	return r.JSON409
+}
+
+// GetBody returns the raw response body bytes
+func (r RunSetupResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RunSetupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RunSetupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RunSetupResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetupStatusResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Envelope
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetupStatusResponse) GetJSON200() *Envelope {
+	return r.JSON200
+}
+
+// GetBody returns the raw response body bytes
+func (r SetupStatusResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetupStatusResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetupStatusResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetupStatusResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListShareLinksResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -11657,6 +11914,45 @@ func (c *ClientWithResponses) ResolveShortLinkWithResponse(ctx context.Context, 
 	return ParseResolveShortLinkResponse(rsp)
 }
 
+// RunSetupWithBodyWithResponse One-time first-run setup (creates platform admin, tenant, disk backend)
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /setup (the `RunSetup` operationId).
+func (c *ClientWithResponses) RunSetupWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RunSetupResponse, error) {
+	rsp, err := c.RunSetupWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRunSetupResponse(rsp)
+}
+
+// RunSetupWithResponse One-time first-run setup (creates platform admin, tenant, disk backend)
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /setup (the `RunSetup` operationId).
+func (c *ClientWithResponses) RunSetupWithResponse(ctx context.Context, body RunSetupJSONRequestBody, reqEditors ...RequestEditorFn) (*RunSetupResponse, error) {
+	rsp, err := c.RunSetup(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRunSetupResponse(rsp)
+}
+
+// SetupStatusWithResponse Whether the install still needs its one-time setup
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /setup/status (the `SetupStatus` operationId).
+func (c *ClientWithResponses) SetupStatusWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*SetupStatusResponse, error) {
+	rsp, err := c.SetupStatus(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetupStatusResponse(rsp)
+}
+
 // ListShareLinksWithResponse List the current tenant's share links
 //
 // Returns a wrapper object for the known response body format(s).
@@ -13554,6 +13850,65 @@ func ParseResolveShortLinkResponse(rsp *http.Response) (*ResolveShortLinkRespons
 	response := &ResolveShortLinkResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseRunSetupResponse parses an HTTP response from a RunSetupWithResponse call
+func ParseRunSetupResponse(rsp *http.Response) (*RunSetupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RunSetupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Envelope
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Conflict
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetupStatusResponse parses an HTTP response from a SetupStatusWithResponse call
+func ParseSetupStatusResponse(rsp *http.Response) (*SetupStatusResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetupStatusResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Envelope
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
 	}
 
 	return response, nil

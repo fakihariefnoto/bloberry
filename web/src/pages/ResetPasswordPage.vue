@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { Lock, ArrowRight, Boxes } from 'lucide-vue-next'
 import { api } from '../lib/api'
 import AppInput from '../components/ui/AppInput.vue'
 import AppButton from '../components/ui/AppButton.vue'
@@ -31,13 +32,24 @@ async function submit() {
 </script>
 
 <template>
-  <div class="flex min-h-screen items-center justify-center bg-[var(--color-background)] px-4">
-    <div class="w-full max-w-sm rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-raised)] p-6 shadow-[var(--shadow-md)]">
-      <h1 class="text-xl font-bold text-[var(--color-text)]">Set a new password</h1>
-      <div class="mt-6 flex flex-col gap-4">
-        <AppInput v-model="password" label="New password" type="password" />
-        <AppInput v-model="confirm" label="Confirm password" type="password" :error="error" />
-        <AppButton :loading="loading" @click="submit">Set password</AppButton>
+  <div class="flex min-h-screen items-center justify-center bg-[#012624] px-4">
+    <div class="w-full max-w-sm">
+      <div class="mb-8 text-center">
+        <span class="mx-auto flex h-12 w-12 items-center justify-center rounded-[16px] bg-[#003734]">
+          <Boxes class="h-6 w-6 text-[#cbfffc]" />
+        </span>
+        <h1 class="mt-4 text-[28px] font-medium leading-[1.0] tracking-[-0.02em] text-white">Set a new password</h1>
+      </div>
+
+      <div class="rounded-[16px] bg-[#003734] p-8">
+        <div class="flex flex-col gap-4">
+          <AppInput v-model="password" label="New password" type="password" :icon="Lock" dark />
+          <AppInput v-model="confirm" label="Confirm password" type="password" :icon="Lock" dark :error="error" />
+          <AppButton variant="gradient" :loading="loading" @click="submit">
+            Set password
+            <ArrowRight class="ml-2 h-4 w-4" />
+          </AppButton>
+        </div>
       </div>
     </div>
   </div>

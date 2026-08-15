@@ -9,6 +9,6 @@ import { ShieldX } from 'lucide-vue-next'
     <p class="mt-1 max-w-sm text-sm text-[var(--color-text-muted)]">
       This area requires a higher role. If you think this is a mistake, ask a tenant admin.
     </p>
-    <RouterLink to="/" class="mt-4 text-sm text-[var(--color-primary)] hover:underline">Back to Files</RouterLink>
+    <RouterLink to="/app" class="mt-4 text-sm text-[var(--color-primary)] hover:underline">Back to Files</RouterLink>
   </div>
 </template>

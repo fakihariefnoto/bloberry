@@ -21,6 +21,7 @@ import (
 	server "github.com/fakihariefnoto/bloberry/internal/platform/api"
 	"github.com/fakihariefnoto/bloberry/internal/platform/httpx"
 	"github.com/fakihariefnoto/bloberry/internal/share"
+	"github.com/fakihariefnoto/bloberry/internal/setup"
 	"github.com/fakihariefnoto/bloberry/internal/storage"
 	"github.com/fakihariefnoto/bloberry/internal/tenant"
 	"github.com/fakihariefnoto/bloberry/internal/usage"
@@ -41,6 +42,7 @@ type Handler struct {
 	Usage   usage.Usecase
 	Audit   audit.Usecase
 	Admin   admin.Usecase
+	Setup   setup.Usecase
 	// Storage registry for the disk driver's raw HMAC endpoint + health.
 	Storage  object.Registry
 	Envelope interface {
@@ -87,6 +89,34 @@ func requireAdmin(w http.ResponseWriter, r *http.Request) bool {
 
 func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 	data(w, http.StatusOK, map[string]interface{}{"status": "ok"})
+}
+
+func (h *Handler) SetupStatus(w http.ResponseWriter, r *http.Request) {
+	st, err := h.Setup.Status(r.Context())
+	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	data(w, http.StatusOK, st)
+}
+
+func (h *Handler) RunSetup(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Email       string `json:"email"`
+		Password    string `json:"password"`
+		DisplayName string `json:"display_name"`
+		TenantName  string `json:"tenant_name"`
+		TenantSlug  string `json:"tenant_slug"`
+	}
+	if err := decodeBody(r, &req); err != nil {
+		httpx.Error(w, http.StatusBadRequest, "bad_request")
+		return
+	}
+	if err := h.Setup.Run(r.Context(), req.Email, req.Password, req.DisplayName, req.TenantName, req.TenantSlug); err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	data(w, http.StatusOK, map[string]interface{}{"setup_complete": true})
 }
 
 // --- auth ---

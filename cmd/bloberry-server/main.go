@@ -44,6 +44,8 @@ import (
 	"github.com/fakihariefnoto/bloberry/internal/platform/web"
 	sharerepo "github.com/fakihariefnoto/bloberry/internal/share/repository"
 	shareuc "github.com/fakihariefnoto/bloberry/internal/share/usecase"
+	setuprepo "github.com/fakihariefnoto/bloberry/internal/setup/repository"
+	setupuc "github.com/fakihariefnoto/bloberry/internal/setup/usecase"
 	"github.com/fakihariefnoto/bloberry/internal/storage/disk"
 	"github.com/fakihariefnoto/bloberry/internal/storage/registry"
 	tenantrepo "github.com/fakihariefnoto/bloberry/internal/tenant/repository"
@@ -145,6 +147,9 @@ func main() {
 	adminRepo := adminrepo.New(mdb.DB)
 	adminUC := adminuc.NewUsecase(adminuc.Deps{Repo: adminRepo, Registry: reg, Envelope: crypto.NewEnvelopeOrPanic(cfg.CredentialEncryptionKey), Counters: adminRepo, AllTenants: tenantRepo})
 
+	setupRepo := setuprepo.New(mdb.DB)
+	setupUC := setupuc.NewUsecase(setupuc.Deps{Repo: setupRepo, DiskRoot: envOr("DISK_STORAGE_PATH", "/var/lib/bloberry/objects")})
+
 	// Bootstrap: register all stored backends into the in-memory driver
 	// registry at boot so the registry survives restarts (ADR-2).
 	if err := bootstrapBackends(ctx, mdb.DB, reg, cfg); err != nil {
@@ -155,6 +160,7 @@ func main() {
 		Auth: authUC, Users: userUC, Tenants: tenantUC, Folders: folderUC,
 		Objects: objectUC, Shares: shareUC, APIKeys: apikeyUC, Grants: grantUC,
 		Jobs: jobUC, Usage: usageUC, Audit: auditUC, Admin: adminUC,
+		Setup: setupUC,
 		Storage: reg,
 	}
 
@@ -205,6 +211,8 @@ func main() {
 // publicPaths are the spec endpoints that do not require authentication.
 var publicPaths = map[string]bool{
 	"GET /health":                    true,
+	"GET /setup/status":              true,
+	"POST /setup":                    true,
 	"GET /s/":                        true,
 	"POST /auth/signup":              true,
 	"POST /auth/login":               true,

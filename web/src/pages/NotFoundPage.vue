@@ -9,6 +9,6 @@ import { FileQuestion } from 'lucide-vue-next'
     <p class="mt-1 max-w-sm text-sm text-[var(--color-text-muted)]">
       That address doesn't exist on this install.
     </p>
-    <RouterLink to="/" class="mt-4 text-sm text-[var(--color-primary)] hover:underline">Back to Files</RouterLink>
+    <RouterLink to="/app" class="mt-4 text-sm text-[var(--color-primary)] hover:underline">Back to Files</RouterLink>
   </div>
 </template>

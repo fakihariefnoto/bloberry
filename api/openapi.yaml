@@ -1428,6 +1428,52 @@ paths:
       responses:
         '200':
           description: Healthy
+  /setup/status:
+    get:
+      operationId: setupStatus
+      summary: Whether the install still needs its one-time setup
+      security: []
+      responses:
+        '200':
+          description: Setup status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+  /setup:
+    post:
+      operationId: runSetup
+      summary: One-time first-run setup (creates platform admin, tenant, disk backend)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, tenant_name, tenant_slug]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 8
+                display_name:
+                  type: string
+                tenant_name:
+                  type: string
+                tenant_slug:
+                  type: string
+      responses:
+        '200':
+          description: Setup complete
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+        '409':
+          $ref: '#/components/responses/Conflict'
   /s/{slug}:
     get:
       operationId: resolveShortLink

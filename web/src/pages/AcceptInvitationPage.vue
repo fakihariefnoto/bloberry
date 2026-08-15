@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { Mail, Lock, User, ArrowRight, Boxes } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
 import AppInput from '../components/ui/AppInput.vue'
 import AppButton from '../components/ui/AppButton.vue'
@@ -32,20 +33,31 @@ const login = () => router.push({ name: 'login' })
 </script>
 
 <template>
-  <div class="flex min-h-screen items-center justify-center bg-[var(--color-background)] px-4">
-    <div class="w-full max-w-sm rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-raised)] p-6 shadow-[var(--shadow-md)]">
-      <h1 class="text-xl font-bold text-[var(--color-text)]">You're invited</h1>
-      <p class="mt-1 text-sm text-[var(--color-text-muted)]">Create your account to join this workspace.</p>
-      <div class="mt-6 flex flex-col gap-4">
-        <AppInput v-model="email" label="Email" type="email" />
-        <AppInput v-model="displayName" label="Display name" />
-        <AppInput v-model="password" label="Password" type="password" :error="error" />
-        <AppButton :loading="loading" @click="accept">Create account</AppButton>
+  <div class="flex min-h-screen items-center justify-center bg-[#012624] px-4">
+    <div class="w-full max-w-sm">
+      <div class="mb-8 text-center">
+        <span class="mx-auto flex h-12 w-12 items-center justify-center rounded-[16px] bg-[#003734]">
+          <Boxes class="h-6 w-6 text-[#cbfffc]" />
+        </span>
+        <h1 class="mt-4 text-[28px] font-medium leading-[1.0] tracking-[-0.02em] text-white">You're invited</h1>
+        <p class="mt-2 text-sm text-[#bbc7c6]">Create your account to join this workspace.</p>
       </div>
-      <p class="mt-4 text-sm text-[var(--color-text-muted)]">
-        Already have an account?
-        <button class="text-[var(--color-primary)] hover:underline" @click="login">Log in</button>
-      </p>
+
+      <div class="rounded-[16px] bg-[#003734] p-8">
+        <div class="flex flex-col gap-4">
+          <AppInput v-model="email" label="Email" type="email" :icon="Mail" dark />
+          <AppInput v-model="displayName" label="Display name" :icon="User" dark />
+          <AppInput v-model="password" label="Password" type="password" :icon="Lock" dark :error="error" />
+          <AppButton variant="gradient" :loading="loading" @click="accept">
+            Create account
+            <ArrowRight class="ml-2 h-4 w-4" />
+          </AppButton>
+        </div>
+        <p class="mt-5 text-sm text-[#707777]">
+          Already have an account?
+          <button class="text-[#cbfffc] hover:underline" @click="login">Log in</button>
+        </p>
+      </div>
     </div>
   </div>
 </template>

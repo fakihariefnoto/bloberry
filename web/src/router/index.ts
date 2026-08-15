@@ -2,6 +2,8 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
 const routes = [
+  { path: '/', name: 'landing', component: () => import('../pages/LandingPage.vue'), meta: { public: true } },
+  { path: '/setup', name: 'setup', component: () => import('../pages/SetupPage.vue'), meta: { public: true } },
   { path: '/login', name: 'login', component: () => import('../pages/LoginPage.vue'), meta: { public: true } },
   { path: '/login/otp', name: 'otp-login', component: () => import('../pages/OtpLoginPage.vue'), meta: { public: true } },
   { path: '/forgot-password', name: 'forgot-password', component: () => import('../pages/ForgotPasswordPage.vue'), meta: { public: true } },
@@ -10,7 +12,7 @@ const routes = [
   { path: '/s/:slug', name: 'link-expired', component: () => import('../pages/LinkExpiredPage.vue'), meta: { public: true } },
 
   {
-    path: '/',
+    path: '/app',
     component: () => import('../components/AppShell.vue'),
     children: [
       { path: '', redirect: { name: 'files' } },

@@ -57,7 +57,7 @@ func (r *repo) ListByUser(ctx context.Context, userID string) ([]domain.Tenant, 
 	if err := cur.All(ctx, &memberships); err != nil {
 		return nil, err
 	}
-	var out []domain.Tenant
+	out := make([]domain.Tenant, 0)
 	for _, m := range memberships {
 		if t, err := r.GetByID(ctx, m.TenantID); err == nil {
 			out = append(out, *t)
@@ -85,7 +85,7 @@ func (r *repo) ListAll(ctx context.Context) ([]domain.Tenant, error) {
 		return nil, err
 	}
 	defer cur.Close(ctx)
-	var out []domain.Tenant
+	out := make([]domain.Tenant, 0)
 	if err := cur.All(ctx, &out); err != nil {
 		return nil, err
 	}
@@ -119,7 +119,7 @@ func (r *repo) ListMembers(ctx context.Context, tenantID string) ([]domain.Membe
 		return nil, err
 	}
 	defer cur.Close(ctx)
-	var out []domain.Membership
+	out := make([]domain.Membership, 0)
 	if err := cur.All(ctx, &out); err != nil {
 		return nil, err
 	}
@@ -132,7 +132,7 @@ func (r *repo) ListMembershipsByUser(ctx context.Context, userID string) ([]doma
 		return nil, err
 	}
 	defer cur.Close(ctx)
-	var out []domain.Membership
+	out := make([]domain.Membership, 0)
 	if err := cur.All(ctx, &out); err != nil {
 		return nil, err
 	}
@@ -166,7 +166,7 @@ func (r *repo) ListInvitations(ctx context.Context, tenantID string) ([]domain.I
 		return nil, err
 	}
 	defer cur.Close(ctx)
-	var out []domain.Invitation
+	out := make([]domain.Invitation, 0)
 	if err := cur.All(ctx, &out); err != nil {
 		return nil, err
 	}

@@ -51,7 +51,7 @@ func (r *repo) ListBackends(ctx context.Context) ([]domain.StorageBackend, error
 		return nil, err
 	}
 	defer cur.Close(ctx)
-	var out []domain.StorageBackend
+	out := make([]domain.StorageBackend, 0)
 	if err := cur.All(ctx, &out); err != nil {
 		return nil, err
 	}
@@ -70,7 +70,7 @@ func (r *repo) ListForTenant(ctx context.Context, tenantID string) ([]domain.Sto
 		return nil, err
 	}
 	defer cur.Close(ctx)
-	var out []domain.StorageBackend
+	out := make([]domain.StorageBackend, 0)
 	if err := cur.All(ctx, &out); err != nil {
 		return nil, err
 	}

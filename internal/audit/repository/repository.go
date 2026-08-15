@@ -53,7 +53,7 @@ func (r *repo) List(ctx context.Context, tenantID string, f audit.ListFilter) ([
 		return nil, err
 	}
 	defer cur.Close(ctx)
-	var out []domain.AuditEvent
+	out := make([]domain.AuditEvent, 0)
 	if err := cur.All(ctx, &out); err != nil {
 		return nil, err
 	}

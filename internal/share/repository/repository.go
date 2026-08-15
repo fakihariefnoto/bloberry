@@ -62,7 +62,7 @@ func (r *repo) ListByObject(ctx context.Context, tenantID, objectID string) ([]d
 		return nil, err
 	}
 	defer cur.Close(ctx)
-	var out []domain.ShareLink
+	out := make([]domain.ShareLink, 0)
 	if err := cur.All(ctx, &out); err != nil {
 		return nil, err
 	}
@@ -93,7 +93,7 @@ func (r *repo) ListByTenant(ctx context.Context, tenantID string) ([]domain.Shar
 		return nil, err
 	}
 	defer cur.Close(ctx)
-	var out []domain.ShareLink
+	out := make([]domain.ShareLink, 0)
 	if err := cur.All(ctx, &out); err != nil {
 		return nil, err
 	}

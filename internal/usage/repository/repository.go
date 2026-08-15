@@ -48,7 +48,7 @@ func (r *repo) History(ctx context.Context, tenantID string, limit int) ([]domai
 		return nil, err
 	}
 	defer cur.Close(ctx)
-	var out []domain.UsageSnapshot
+	out := make([]domain.UsageSnapshot, 0)
 	if err := cur.All(ctx, &out); err != nil {
 		return nil, err
 	}
@@ -62,7 +62,7 @@ func (r *repo) AllTenantsLatest(ctx context.Context) ([]domain.UsageSnapshot, er
 		return nil, err
 	}
 	defer cur.Close(ctx)
-	var out []domain.UsageSnapshot
+	out := make([]domain.UsageSnapshot, 0)
 	if err := cur.All(ctx, &out); err != nil {
 		return nil, err
 	}

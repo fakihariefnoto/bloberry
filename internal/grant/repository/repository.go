@@ -41,7 +41,7 @@ func (r *repo) ListByFolder(ctx context.Context, tenantID, folderID string) ([]d
 		return nil, err
 	}
 	defer cur.Close(ctx)
-	var out []domain.Grant
+	out := make([]domain.Grant, 0)
 	if err := cur.All(ctx, &out); err != nil {
 		return nil, err
 	}
@@ -57,7 +57,7 @@ func (r *repo) ListByPrincipal(ctx context.Context, tenantID, principalType, pri
 		return nil, err
 	}
 	defer cur.Close(ctx)
-	var out []domain.Grant
+	out := make([]domain.Grant, 0)
 	if err := cur.All(ctx, &out); err != nil {
 		return nil, err
 	}

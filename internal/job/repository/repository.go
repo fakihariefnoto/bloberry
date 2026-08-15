@@ -50,7 +50,7 @@ func (r *repo) ListByTenant(ctx context.Context, tenantID string) ([]domain.Job,
 		return nil, err
 	}
 	defer cur.Close(ctx)
-	var out []domain.Job
+	out := make([]domain.Job, 0)
 	if err := cur.All(ctx, &out); err != nil {
 		return nil, err
 	}

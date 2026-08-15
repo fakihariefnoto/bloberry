@@ -23,6 +23,7 @@ type Repository interface {
 // Registry is the narrow storage-registry interface admin depends on.
 type Registry interface {
 	Register(record registry.BackendRecord) (storage.Driver, error)
+	Get(id string) (storage.Driver, error)
 	Remove(id string)
 }
 
@@ -35,6 +36,20 @@ type Usecase interface {
 	CheckHealth(ctx context.Context, id string) (*domain.StorageBackend, error)
 	InstallStats(ctx context.Context) (*InstallStats, error)
 	ListAllTenants(ctx context.Context) ([]domain.Tenant, error)
+	// TenantUsage returns live usage for every tenant (bytes/objects from the
+	// denormalized counters, plus an estimated monthly cost from the rate card).
+	TenantUsage(ctx context.Context) ([]TenantUsageRow, error)
+}
+
+// TenantUsageRow is one row of install-wide usage.
+type TenantUsageRow struct {
+	TenantID     string  `json:"tenant_id"`
+	Name         string  `json:"name"`
+	Slug         string  `json:"slug"`
+	BytesStored  int64   `json:"bytes_stored"`
+	ObjectCount  int64   `json:"object_count"`
+	StorageCost  float64 `json:"storage_cost"`
+	HasRateCard  bool    `json:"has_rate_card"`
 }
 
 type InstallStats struct {

@@ -1263,11 +1263,20 @@ func (h *Handler) ListAuditEvents(w http.ResponseWriter, r *http.Request, params
 
 func (h *Handler) MyUsage(w http.ResponseWriter, r *http.Request) {
 	p := principalOf(r)
-	snap, err := h.Usage.Latest(r.Context(), p.TenantID)
-	if err != nil {
-		snap = &domain.UsageSnapshot{}
+	// Live numbers from the tenant record (denormalized counters) so the usage
+	// page works before the hourly metering ticker has produced snapshots.
+	live := &domain.UsageSnapshot{}
+	if t, err := h.Tenants.Get(r.Context(), p.TenantID); err == nil {
+		live.BytesStored = t.UsedBytes
+		live.ObjectCount = t.UsedObjects
+		live.Period = "live"
 	}
-	data(w, http.StatusOK, snap)
+	if snap, err := h.Usage.Latest(r.Context(), p.TenantID); err == nil {
+		// merge: prefer live counters for bytes/objects, snapshot for egress
+		live.EgressBytes = snap.EgressBytes
+		live.RequestCount = snap.RequestCount
+	}
+	data(w, http.StatusOK, live)
 }
 
 func (h *Handler) EstimatedCost(w http.ResponseWriter, r *http.Request) {
@@ -1382,12 +1391,12 @@ func (h *Handler) AdminUsage(w http.ResponseWriter, r *http.Request) {
 	if !requireAdmin(w, r) {
 		return
 	}
-	snaps, err := h.Usage.AllTenants(r.Context())
+	rows, err := h.Admin.TenantUsage(r.Context())
 	if err != nil {
 		httpx.WriteError(w, err)
 		return
 	}
-	data(w, http.StatusOK, snaps)
+	data(w, http.StatusOK, rows)
 }
 
 func (h *Handler) InstallStats(w http.ResponseWriter, r *http.Request) {

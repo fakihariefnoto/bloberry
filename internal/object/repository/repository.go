@@ -86,7 +86,7 @@ func (r *repo) ListByFolder(ctx context.Context, tenantID, folderID string) ([]d
 		return nil, err
 	}
 	defer cur.Close(ctx)
-	var out []domain.Object
+	out := make([]domain.Object, 0)
 	if err := cur.All(ctx, &out); err != nil {
 		return nil, err
 	}

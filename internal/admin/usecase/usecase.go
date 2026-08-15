@@ -93,15 +93,25 @@ func (u *usecase) DeleteBackend(ctx context.Context, id string) error {
 }
 
 func (u *usecase) CheckHealth(ctx context.Context, id string) (*domain.StorageBackend, error) {
-	// v1: mark checked without a live round-trip (health checks need the
-	// constructed driver which is wired in main; see admin handler).
 	b, err := u.repo.GetBackend(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 	now := time.Now().UTC()
-	b.HealthStatus = "unchecked"
 	b.HealthCheckedAt = &now
+	if drv, derr := u.reg.Get(id); derr == nil {
+		if herr := drv.HealthCheck(ctx); herr == nil {
+			b.HealthStatus = "healthy"
+			b.HealthError = ""
+		} else {
+			b.HealthStatus = "unreachable"
+			b.HealthError = herr.Error()
+		}
+	} else {
+		// driver not constructed — report as unreachable with the reason
+		b.HealthStatus = "unreachable"
+		b.HealthError = derr.Error()
+	}
 	_ = u.repo.UpdateBackend(ctx, b)
 	return b, nil
 }
@@ -152,4 +162,30 @@ func (u *usecase) ListAllTenants(ctx context.Context) ([]domain.Tenant, error) {
 		return []domain.Tenant{}, nil
 	}
 	return u.allTenants.ListAll(ctx)
+}
+
+// TenantUsage computes install-wide usage live from the tenant records, so the
+// admin usage page works even before the hourly metering ticker has run.
+func (u *usecase) TenantUsage(ctx context.Context) ([]admin.TenantUsageRow, error) {
+	tenants, err := u.ListAllTenants(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows := make([]admin.TenantUsageRow, 0, len(tenants))
+	for _, t := range tenants {
+		row := admin.TenantUsageRow{
+			TenantID: t.ID, Name: t.Name, Slug: t.Slug,
+			BytesStored: t.UsedBytes, ObjectCount: t.UsedObjects,
+		}
+		if t.DefaultBackendID != "" {
+			if be, err := u.repo.GetBackend(ctx, t.DefaultBackendID); err == nil {
+				if rc, ok := be.RateCard["storage_per_gb_month"].(float64); ok && rc > 0 {
+					row.HasRateCard = true
+					row.StorageCost = float64(t.UsedBytes) / (1024 * 1024 * 1024) * rc
+				}
+			}
+		}
+		rows = append(rows, row)
+	}
+	return rows, nil
 }

@@ -70,7 +70,7 @@ func (r *repo) ListChildren(ctx context.Context, tenantID string, parentID *stri
 		return nil, err
 	}
 	defer cur.Close(ctx)
-	var out []domain.Folder
+	out := make([]domain.Folder, 0)
 	if err := cur.All(ctx, &out); err != nil {
 		return nil, err
 	}
@@ -83,7 +83,7 @@ func (r *repo) Descendants(ctx context.Context, tenantID, id string) ([]domain.F
 		return nil, err
 	}
 	defer cur.Close(ctx)
-	var out []domain.Folder
+	out := make([]domain.Folder, 0)
 	if err := cur.All(ctx, &out); err != nil {
 		return nil, err
 	}
@@ -96,7 +96,7 @@ func (r *repo) DescendantObjects(ctx context.Context, tenantID string, folderIDs
 		return nil, err
 	}
 	defer cur.Close(ctx)
-	var out []domain.Object
+	out := make([]domain.Object, 0)
 	if err := cur.All(ctx, &out); err != nil {
 		return nil, err
 	}

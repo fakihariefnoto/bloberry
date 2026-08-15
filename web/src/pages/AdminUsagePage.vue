@@ -2,8 +2,17 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '../lib/api'
+import PageHeader from '../components/ui/PageHeader.vue'
 
-interface Snap { tenant_id: string; bytes_stored: number; object_count: number; egress_bytes: number; estimated_cost: number; period: string }
+interface Snap {
+  tenant_id: string
+  name: string
+  slug: string
+  bytes_stored: number
+  object_count: number
+  storage_cost: number
+  has_rate_card: boolean
+}
 
 const router = useRouter()
 const snaps = ref<Snap[]>([])
@@ -25,8 +34,7 @@ function formatBytes(n: number) {
 
 <template>
   <div>
-    <h1 class="text-2xl font-bold text-[var(--color-text)]">Install usage</h1>
-    <p class="mt-1 text-sm text-[var(--color-text-muted)]">Latest snapshot per tenant.</p>
+    <PageHeader title="Install usage" description="Live storage and object counts per tenant." />
 
     <div class="mt-4 overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)]">
       <table class="w-full text-sm">
@@ -35,20 +43,21 @@ function formatBytes(n: number) {
             <th class="px-3 py-2">Tenant</th>
             <th class="px-3 py-2">Storage</th>
             <th class="px-3 py-2">Objects</th>
-            <th class="px-3 py-2">Egress</th>
             <th class="px-3 py-2">Est. cost</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="s in snaps" :key="s.tenant_id + s.period" class="cursor-pointer border-t border-[var(--color-border)] hover:bg-[var(--color-surface)]" @click="router.push({ name: 'admin-tenant-detail', params: { tenantId: s.tenant_id } })">
-            <td class="px-3 py-2.5 font-mono text-xs">{{ s.tenant_id.slice(0, 8) }}…</td>
+          <tr v-for="s in snaps" :key="s.tenant_id" class="cursor-pointer border-t border-[var(--color-border)] hover:bg-[var(--color-surface)]" @click="router.push({ name: 'admin-tenant-detail', params: { tenantId: s.tenant_id } })">
+            <td class="px-3 py-2.5"><span class="font-medium text-[var(--color-text)]">{{ s.name }}</span> <span class="text-xs text-[var(--color-text-muted)]">/{{ s.slug }}</span></td>
             <td class="px-3 py-2.5">{{ formatBytes(s.bytes_stored) }}</td>
             <td class="px-3 py-2.5">{{ s.object_count }}</td>
-            <td class="px-3 py-2.5">{{ formatBytes(s.egress_bytes) }}</td>
-            <td class="px-3 py-2.5">{{ s.estimated_cost ? `$${s.estimated_cost.toFixed(2)}` : 'unknown' }}</td>
+            <td class="px-3 py-2.5">
+              <span v-if="s.has_rate_card">{{ `$${s.storage_cost.toFixed(2)}` }}</span>
+              <span v-else class="text-[var(--color-text-muted)]">no rate card</span>
+            </td>
           </tr>
           <tr v-if="!loading && !snaps.length">
-            <td colspan="5" class="px-4 py-10 text-center text-sm text-[var(--color-text-muted)]">No usage snapshots yet.</td>
+            <td colspan="4" class="px-4 py-10 text-center text-sm text-[var(--color-text-muted)]">No tenants yet.</td>
           </tr>
         </tbody>
       </table>

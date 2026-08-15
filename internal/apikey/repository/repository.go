@@ -42,7 +42,7 @@ func (r *repo) ListApplications(ctx context.Context, tenantID string) ([]domain.
 		return nil, err
 	}
 	defer cur.Close(ctx)
-	var out []domain.Application
+	out := make([]domain.Application, 0)
 	if err := cur.All(ctx, &out); err != nil {
 		return nil, err
 	}
@@ -80,7 +80,7 @@ func (r *repo) ListKeys(ctx context.Context, tenantID, applicationID string) ([]
 		return nil, err
 	}
 	defer cur.Close(ctx)
-	var out []domain.AccessKey
+	out := make([]domain.AccessKey, 0)
 	if err := cur.All(ctx, &out); err != nil {
 		return nil, err
 	}

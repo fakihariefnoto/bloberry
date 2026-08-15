@@ -81,12 +81,12 @@ func (r *Registry) Remove(id string) {
 
 // DefaultFactory builds the concrete driver for a record.
 // secret is the disk-driver HMAC signer key (domains.md §6.3).
-func DefaultFactory(baseURL string, secret []byte) Factory {
+func DefaultFactory(secret []byte) Factory {
 	return func(record BackendRecord) (storage.Driver, error) {
 		switch record.DriverType {
 		case "disk":
 			root := str(record.Config, "root", "/var/lib/bloberry/objects")
-			return disk.New(root, baseURL, secret)
+			return disk.New(root, secret)
 		case "s3", "r2":
 			return s3.New(s3.Options{
 				Endpoint:        str(record.Config, "endpoint", ""),

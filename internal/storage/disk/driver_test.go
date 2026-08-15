@@ -3,6 +3,7 @@ package disk_test
 import (
 	"context"
 	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 	"testing"
@@ -13,7 +14,7 @@ import (
 
 func TestConformance(t *testing.T) {
 	dir := t.TempDir()
-	d, err := disk.New(dir, "http://localhost:8080", []byte("test-secret"))
+	d, err := disk.New(dir, []byte("test-secret"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -22,7 +23,7 @@ func TestConformance(t *testing.T) {
 
 func TestDiskPresignToken(t *testing.T) {
 	dir := t.TempDir()
-	d, err := disk.New(dir, "http://localhost:8080", []byte("test-secret"))
+	d, err := disk.New(dir, []byte("test-secret"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -31,13 +32,15 @@ func TestDiskPresignToken(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Extract token from query string
-	q := u.URL[len("http://localhost:8080/v1/objects/raw?key="):]
-	i := 0
-	for i < len(q) && q[i] != '&' {
-		i++
+	// Extract token from the query string of the (relative) presigned URL.
+	parsed, err := url.Parse(u.URL)
+	if err != nil {
+		t.Fatalf("parse presigned url: %v", err)
 	}
-	token := q[i+len("&token="):]
+	token := parsed.Query().Get("token")
+	if token == "" {
+		t.Fatal("no token in presigned url")
+	}
 
 	if err := d.VerifyToken(key, "GET", token); err != nil {
 		t.Fatalf("valid token rejected: %v", err)
@@ -54,7 +57,7 @@ func TestDiskPresignToken(t *testing.T) {
 
 func TestDiskPutGetDelete(t *testing.T) {
 	dir := t.TempDir()
-	d, err := disk.New(dir, "http://localhost:8080", []byte("s"))
+	d, err := disk.New(dir, []byte("s"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +85,7 @@ func TestDiskPutGetDelete(t *testing.T) {
 
 func TestDiskRejectsTraversal(t *testing.T) {
 	dir := t.TempDir()
-	d, err := disk.New(dir, "http://localhost:8080", []byte("s"))
+	d, err := disk.New(dir, []byte("s"))
 	if err != nil {
 		t.Fatal(err)
 	}

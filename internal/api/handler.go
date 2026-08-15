@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -680,7 +681,36 @@ func (h *Handler) ListFolderChildren(w http.ResponseWriter, r *http.Request, fol
 		httpx.WriteError(w, err)
 		return
 	}
-	data(w, http.StatusOK, map[string]interface{}{"folders": folders, "objects": objects})
+	enriched := enrichObjects(r.Context(), h, objects)
+	data(w, http.StatusOK, map[string]interface{}{"folders": folders, "objects": enriched})
+}
+
+// enrichObjects appends the storage backend's name + driver to each object so
+// the UI can show which account/vendor holds the file (PRD: storage-agnostic,
+// but the dashboard must still show where bytes actually live).
+func enrichObjects(ctx context.Context, h *Handler, objects []domain.Object) []map[string]interface{} {
+	cache := map[string]*domain.StorageBackend{}
+	out := make([]map[string]interface{}, 0, len(objects))
+	for i := range objects {
+		o := &objects[i]
+		m := map[string]interface{}{}
+		b, _ := json.Marshal(o)
+		_ = json.Unmarshal(b, &m)
+		be, ok := cache[o.BackendID]
+		if !ok {
+			b, err := h.Admin.GetBackend(ctx, o.BackendID)
+			if err == nil {
+				be = b
+				cache[o.BackendID] = b
+			}
+		}
+		if be != nil {
+			m["backend_name"] = be.Name
+			m["backend_driver"] = be.Driver
+		}
+		out = append(out, m)
+	}
+	return out
 }
 
 func (h *Handler) GetFolderTree(w http.ResponseWriter, r *http.Request, folderId server.FolderId) {

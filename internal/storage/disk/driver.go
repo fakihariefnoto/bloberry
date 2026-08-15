@@ -23,15 +23,14 @@ import (
 // /v1/objects/{id}/raw endpoint (domains.md §6.3).
 type Driver struct {
 	root    string
-	baseURL string
 	secret  []byte
 }
 
-func New(root, baseURL string, secret []byte) (*Driver, error) {
+func New(root string, secret []byte) (*Driver, error) {
 	if err := os.MkdirAll(root, 0o750); err != nil {
 		return nil, fmt.Errorf("disk: mkdir root: %w", err)
 	}
-	return &Driver{root: root, baseURL: baseURL, secret: secret}, nil
+	return &Driver{root: root, secret: secret}, nil
 }
 
 func (d *Driver) Capabilities() storage.Capabilities {
@@ -166,7 +165,7 @@ func (d *Driver) HealthCheck(ctx context.Context) error {
 func (d *Driver) PresignGet(ctx context.Context, key string, ttl time.Duration) (*storage.PresignedURL, error) {
 	token := d.sign(key, "GET", ttl)
 	return &storage.PresignedURL{
-		URL:    d.baseURL + "/v1/objects/raw?key=" + url.QueryEscape(key) + "&token=" + token,
+		URL:    "/v1/objects/raw?key=" + url.QueryEscape(key) + "&token=" + token,
 		Method: "GET",
 	}, nil
 }
@@ -174,7 +173,7 @@ func (d *Driver) PresignGet(ctx context.Context, key string, ttl time.Duration) 
 func (d *Driver) PresignPut(ctx context.Context, key string, ttl time.Duration, size int64) (*storage.PresignedURL, error) {
 	token := d.sign(key, "PUT", ttl)
 	return &storage.PresignedURL{
-		URL:    d.baseURL + "/v1/objects/raw?key=" + url.QueryEscape(key) + "&token=" + token,
+		URL:    "/v1/objects/raw?key=" + url.QueryEscape(key) + "&token=" + token,
 		Method: "PUT",
 		Headers: map[string]string{
 			"X-Bloberry-Size": strconv.FormatInt(size, 10),

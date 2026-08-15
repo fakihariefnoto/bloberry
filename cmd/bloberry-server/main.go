@@ -121,7 +121,7 @@ func main() {
 	folderRepo := folderrepo.New(mdb.DB)
 	folderUC := folderuc.NewUsecase(folderRepo)
 
-	reg := registry.NewRegistry(registry.DefaultFactory(cfg.BaseURL, []byte(cfg.CredentialEncryptionKey)))
+	reg := registry.NewRegistry(registry.DefaultFactory([]byte(cfg.CredentialEncryptionKey)))
 	regInstance = reg
 	objectRepo := objectrepo.New(mdb.DB)
 	objectUC := objectuc.NewUsecase(objectuc.Deps{

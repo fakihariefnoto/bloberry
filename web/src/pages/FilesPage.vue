@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Folder, FileText, ChevronRight, Upload, RefreshCw, MoreHorizontal } from 'lucide-vue-next'
+import { Folder, FileText, ChevronRight, Upload, RefreshCw, MoreHorizontal, Globe, HardDrive } from 'lucide-vue-next'
 import { api } from '../lib/api'
 import AppButton from '../components/ui/AppButton.vue'
 
 interface FolderRec { id: string; name: string; path: string }
-interface ObjectRec { id: string; name: string; size_bytes: number; visibility: string; content_type: string; state: string }
+interface ObjectRec { id: string; name: string; size_bytes: number; visibility: string; content_type: string; state: string; backend_name?: string; backend_driver?: string }
 
 const route = useRoute()
 const router = useRouter()
@@ -54,11 +54,17 @@ function formatBytes(n: number) {
 // Upload queue — presigned PUT for each selected file.
 const uploading = ref(false)
 const uploads = ref<{ name: string; progress: number; state: string; error?: string }[]>([])
+const fileInput = ref<HTMLInputElement | null>(null)
+
+function openPicker() {
+  fileInput.value?.click()
+}
 
 async function onFileInput(e: Event) {
   const files = (e.target as HTMLInputElement).files
   if (!files) return
   await uploadFiles(Array.from(files))
+  ;(e.target as HTMLInputElement).value = ''
 }
 
 async function onDrop(e: DragEvent) {
@@ -113,10 +119,8 @@ async function uploadFiles(files: File[]) {
       </div>
       <div class="flex gap-2">
         <AppButton variant="secondary" size="sm" @click="load"><RefreshCw class="h-4 w-4" /> Refresh</AppButton>
-        <label class="inline-flex">
-          <AppButton size="sm" :disabled="uploading"><Upload class="h-4 w-4" /> Upload</AppButton>
-          <input type="file" multiple class="hidden" @change="onFileInput" />
-        </label>
+        <input ref="fileInput" type="file" multiple class="hidden" @change="onFileInput" />
+        <AppButton size="sm" :disabled="uploading" @click="openPicker"><Upload class="h-4 w-4" /> Upload</AppButton>
       </div>
     </div>
 
@@ -140,6 +144,7 @@ async function uploadFiles(files: File[]) {
           <tr class="bg-[var(--color-surface)] text-left text-xs font-medium text-[var(--color-text-muted)]">
             <th class="px-3 py-2">Name</th>
             <th class="px-3 py-2">Size</th>
+            <th class="px-3 py-2">Storage</th>
             <th class="px-3 py-2">Status</th>
             <th class="px-3 py-2"></th>
           </tr>
@@ -154,6 +159,7 @@ async function uploadFiles(files: File[]) {
             <td class="px-3 py-2.5">
               <span class="flex items-center gap-2"><Folder class="h-4 w-4 text-[var(--color-primary)]" /> {{ f.name }}</span>
             </td>
+            <td class="px-3 py-2.5 text-[var(--color-text-muted)]">—</td>
             <td class="px-3 py-2.5 text-[var(--color-text-muted)]">—</td>
             <td class="px-3 py-2.5"></td>
             <td class="px-3 py-2.5"><MoreHorizontal class="h-4 w-4 text-[var(--color-text-muted)]" /></td>
@@ -171,15 +177,24 @@ async function uploadFiles(files: File[]) {
             </td>
             <td class="px-3 py-2.5 text-[var(--color-text-muted)]">{{ formatBytes(o.size_bytes) }}</td>
             <td class="px-3 py-2.5">
+              <span class="inline-flex items-center gap-1.5 text-xs text-[var(--color-text-muted)]">
+                <HardDrive class="h-3.5 w-3.5" />
+                <span class="font-mono">{{ o.backend_driver || '—' }}</span>
+                <span v-if="o.backend_name" class="text-[var(--color-text-muted)]/70">· {{ o.backend_name }}</span>
+              </span>
+            </td>
+            <td class="px-3 py-2.5">
               <span
                 v-if="o.visibility === 'public'"
-                class="rounded-full bg-[var(--color-warning)]/15 px-2 py-0.5 text-xs font-medium text-[var(--color-warning)]"
-              >Public</span>
+                class="inline-flex items-center gap-1 rounded-full bg-[var(--color-warning)]/15 px-2 py-0.5 text-xs font-medium text-[var(--color-warning)]"
+              >
+                <Globe class="h-3 w-3" /> Public
+              </span>
             </td>
             <td class="px-3 py-2.5"></td>
           </tr>
           <tr v-if="!loading && !folders.length && !objects.length">
-            <td colspan="4" class="px-4 py-10 text-center text-sm text-[var(--color-text-muted)]">No files here yet</td>
+            <td colspan="5" class="px-4 py-10 text-center text-sm text-[var(--color-text-muted)]">No files here yet</td>
           </tr>
         </tbody>
       </table>

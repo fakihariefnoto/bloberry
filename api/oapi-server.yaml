@@ -1,0 +1,7 @@
+package: server
+output: internal/platform/api/server.gen.go
+generate:
+  - types
+  - chi-server
+  - skip-prune
+  - skip-fmt

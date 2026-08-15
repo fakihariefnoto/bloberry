@@ -1,0 +1,1615 @@
+openapi: 3.0.3
+info:
+  title: Bloberry API
+  version: 1.0.0
+  description: |
+    Storage-agnostic object service. One API, one SDK and one dashboard over
+    S3, R2, OSS, GCS, Azure Blob or plain disk.
+
+    Standard response envelope: `{data?, messages?: [{code, content}]}` — both
+    `omitempty`, no `error` boolean. The HTTP status code is the success/failure
+    signal; `messages` carries errors and confirmations. Two documented
+    exceptions: `GET /s/{slug}` and public object URLs return HTML/redirects,
+    not the envelope.
+
+    Error codes are API — see the `ErrorCode` schema. Once shipped, a code
+    never changes meaning.
+servers:
+  - url: /v1
+security:
+  - bearerAuth: []
+paths:
+  /auth/signup:
+    post:
+      operationId: signup
+      summary: Sign up with an invitation
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignupRequest'
+      responses:
+        '201':
+          $ref: '#/components/responses/AuthTokens'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /auth/login:
+    post:
+      operationId: login
+      summary: Login with email and password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/AuthTokens'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+  /auth/refresh:
+    post:
+      operationId: refresh
+      summary: Rotate a refresh token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/AuthTokens'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+  /auth/logout:
+    post:
+      operationId: logout
+      summary: Revoke the current session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        '204':
+          description: Session revoked
+  /auth/forgot-password:
+    post:
+      operationId: forgotPassword
+      summary: Request a password reset link
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          $ref: '#/components/responses/MessageResponse'
+  /auth/reset-password:
+    post:
+      operationId: resetPassword
+      summary: Reset a password with a token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, new_password]
+              properties:
+                token:
+                  type: string
+                new_password:
+                  type: string
+                  minLength: 8
+      responses:
+        '200':
+          description: Password reset
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /auth/otp/request:
+    post:
+      operationId: requestOtp
+      summary: Request an email OTP login code
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          $ref: '#/components/responses/MessageResponse'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /auth/otp/verify:
+    post:
+      operationId: verifyOtp
+      summary: Verify an OTP code and receive a session
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, code]
+              properties:
+                email:
+                  type: string
+                  format: email
+                code:
+                  type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/AuthTokens'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+  /auth/google:
+    post:
+      operationId: googleLogin
+      summary: Login with a Google id_token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id_token]
+              properties:
+                id_token:
+                  type: string
+                platform:
+                  $ref: '#/components/schemas/Platform'
+      responses:
+        '200':
+          $ref: '#/components/responses/AuthTokens'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+  /auth/totp/provision:
+    post:
+      operationId: provisionTotp
+      summary: Provision a TOTP secret (shown exactly once)
+      responses:
+        '200':
+          description: TOTP secret for the authenticator app
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+      '400':
+        $ref: '#/components/responses/BadRequest'
+  /auth/totp/enable:
+    post:
+      operationId: enableTotp
+      summary: Confirm a TOTP code and enable 2FA, returns backup codes
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code:
+                  type: string
+      responses:
+        '200':
+          description: Backup codes (shown once)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /auth/login/verify-totp:
+    post:
+      operationId: verifyTotpLogin
+      summary: Complete a login blocked by totp_required
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [pending, code]
+              properties:
+                pending:
+                  type: string
+                code:
+                  type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/AuthTokens'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+  /auth/pair/issue:
+    post:
+      operationId: issuePairToken
+      summary: Mint a one-time QR pairing token (M22)
+      responses:
+        '200':
+          description: QR payload
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      qr_payload:
+                        type: string
+  /auth/pair/verify:
+    post:
+      operationId: verifyPairToken
+      summary: Exchange a pairing token for a mobile session (M22)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [payload]
+              properties:
+                payload:
+                  type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/AuthTokens'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+  /auth/config/issue:
+    post:
+      operationId: issueConfigFile
+      summary: Mint a server-signed config payload (M23)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                platform:
+                  $ref: '#/components/schemas/Platform'
+      responses:
+        '200':
+          description: Signed payload (not yet encrypted)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      payload:
+                        type: string
+  /users/me:
+    get:
+      operationId: getMe
+      summary: Get the current user's profile
+      responses:
+        '200':
+          description: Profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+    patch:
+      operationId: updateMe
+      summary: Update the current user's profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                display_name:
+                  type: string
+                locale:
+                  type: string
+                notifications_enabled:
+                  type: boolean
+      responses:
+        '200':
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+  /users/me/password:
+    post:
+      operationId: changePassword
+      summary: Change the current user's password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [current_password, new_password]
+              properties:
+                current_password:
+                  type: string
+                new_password:
+                  type: string
+                  minLength: 8
+      responses:
+        '200':
+          description: Password changed
+  /tenants:
+    get:
+      operationId: listTenants
+      summary: List tenants the current user belongs to
+      responses:
+        '200':
+          description: Tenants
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+    post:
+      operationId: createTenant
+      summary: Create a tenant (platform admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, slug]
+              properties:
+                name:
+                  type: string
+                slug:
+                  type: string
+                quota_bytes:
+                  type: integer
+                quota_objects:
+                  type: integer
+                default_backend_id:
+                  type: string
+      responses:
+        '201':
+          description: Created tenant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+  /tenants/{tenantId}:
+    get:
+      operationId: getTenant
+      summary: Get a tenant
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      responses:
+        '200':
+          description: Tenant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+    patch:
+      operationId: updateTenant
+      summary: Update a tenant
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                quota_bytes:
+                  type: integer
+                quota_objects:
+                  type: integer
+                default_backend_id:
+                  type: string
+                status:
+                  type: string
+                  enum: [active, suspended]
+      responses:
+        '200':
+          description: Updated tenant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+  /tenants/{tenantId}/members:
+    get:
+      operationId: listMembers
+      summary: List a tenant's members
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      responses:
+        '200':
+          description: Members
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+    post:
+      operationId: addMember
+      summary: Add a member to a tenant
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, role]
+              properties:
+                user_id:
+                  type: string
+                role:
+                  $ref: '#/components/schemas/Role'
+      responses:
+        '201':
+          description: Member added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+  /tenants/{tenantId}/members/{membershipId}:
+    delete:
+      operationId: removeMember
+      summary: Remove a member from a tenant
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: membershipId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Member removed
+    patch:
+      operationId: updateMember
+      summary: Change a member's role
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: membershipId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role:
+                  $ref: '#/components/schemas/Role'
+      responses:
+        '200':
+          description: Member updated
+  /tenants/{tenantId}/invitations:
+    get:
+      operationId: listInvitations
+      summary: List a tenant's invitations
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      responses:
+        '200':
+          description: Invitations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+    post:
+      operationId: createInvitation
+      summary: Invite a user to a tenant
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, role]
+              properties:
+                email:
+                  type: string
+                  format: email
+                role:
+                  $ref: '#/components/schemas/Role'
+      responses:
+        '201':
+          description: Invitation created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+  /folders:
+    post:
+      operationId: createFolder
+      summary: Create a folder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, parent_id]
+              properties:
+                name:
+                  type: string
+                parent_id:
+                  type: string
+      responses:
+        '201':
+          description: Folder created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+  /folders/{folderId}:
+    get:
+      operationId: getFolder
+      summary: Get a folder
+      parameters:
+        - $ref: '#/components/parameters/FolderId'
+      responses:
+        '200':
+          description: Folder
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+    patch:
+      operationId: renameFolder
+      summary: Rename a folder
+      parameters:
+        - $ref: '#/components/parameters/FolderId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+      responses:
+        '200':
+          description: Folder renamed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+    delete:
+      operationId: deleteFolder
+      summary: Delete a folder (subtree delete, possibly queued)
+      parameters:
+        - $ref: '#/components/parameters/FolderId'
+      responses:
+        '202':
+          description: Deletion queued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      job_id:
+                        type: string
+        '204':
+          description: Deleted immediately
+  /folders/{folderId}/move:
+    post:
+      operationId: moveFolder
+      summary: Move a folder
+      parameters:
+        - $ref: '#/components/parameters/FolderId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target_parent_id]
+              properties:
+                target_parent_id:
+                  type: string
+      responses:
+        '200':
+          description: Folder moved
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+  /folders/{folderId}/children:
+    get:
+      operationId: listFolderChildren
+      summary: List a folder's children (folders and objects)
+      parameters:
+        - $ref: '#/components/parameters/FolderId'
+      responses:
+        '200':
+          description: Children
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+  /folders/{folderId}/tree:
+    get:
+      operationId: getFolderTree
+      summary: Get the folder tree below a folder
+      parameters:
+        - $ref: '#/components/parameters/FolderId'
+      responses:
+        '200':
+          description: Tree
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+  /objects/presign-put:
+    post:
+      operationId: presignPut
+      summary: Start a presigned-PUT upload (default browser write path)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [folder_id, name, size]
+              properties:
+                folder_id:
+                  type: string
+                name:
+                  type: string
+                size:
+                  type: integer
+                  format: int64
+                content_type:
+                  type: string
+      responses:
+        '200':
+          description: Presigned PUT URL + pending object
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+  /objects/{fileId}/complete:
+    post:
+      operationId: completeUpload
+      summary: Confirm a presigned-PUT upload
+      parameters:
+        - $ref: '#/components/parameters/FileId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [etag]
+              properties:
+                etag:
+                  type: string
+      responses:
+        '200':
+          description: Object active
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+  /objects/direct:
+    post:
+      operationId: directUpload
+      summary: Upload object bytes through Bloberry (proxy path)
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      parameters:
+        - name: folder_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: name
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: content_type
+          in: query
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Object created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+  /objects/multipart/init:
+    post:
+      operationId: multipartInit
+      summary: Initialize a multipart upload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [folder_id, name, size]
+              properties:
+                folder_id:
+                  type: string
+                name:
+                  type: string
+                size:
+                  type: integer
+                  format: int64
+                content_type:
+                  type: string
+      responses:
+        '200':
+          description: Multipart upload initialized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+  /objects/{fileId}/multipart/presign-part:
+    post:
+      operationId: multipartPresignPart
+      summary: Presign a multipart part URL
+      parameters:
+        - $ref: '#/components/parameters/FileId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [part]
+              properties:
+                part:
+                  type: integer
+      responses:
+        '200':
+          description: Presigned part URL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+  /objects/{fileId}/multipart/complete:
+    post:
+      operationId: multipartComplete
+      summary: Complete a multipart upload
+      parameters:
+        - $ref: '#/components/parameters/FileId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [parts]
+              properties:
+                parts:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      part:
+                        type: integer
+                      etag:
+                        type: string
+      responses:
+        '200':
+          description: Object active
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+  /objects/{fileId}/multipart/status:
+    get:
+      operationId: multipartStatus
+      summary: Get received parts for resumable upload
+      parameters:
+        - $ref: '#/components/parameters/FileId'
+      responses:
+        '200':
+          description: Parts received
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+  /objects/{fileId}:
+    get:
+      operationId: statObject
+      summary: Get object metadata
+      parameters:
+        - $ref: '#/components/parameters/FileId'
+      responses:
+        '200':
+          description: Object
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+    delete:
+      operationId: deleteObject
+      summary: Delete an object
+      parameters:
+        - $ref: '#/components/parameters/FileId'
+      responses:
+        '204':
+          description: Deleted
+  /objects/{fileId}/download:
+    get:
+      operationId: downloadObject
+      summary: Download an object (redirect or proxy)
+      parameters:
+        - $ref: '#/components/parameters/FileId'
+      responses:
+        '302':
+          description: Redirect to provider
+        '200':
+          description: Streamed bytes (proxy path)
+  /objects/{fileId}/move:
+    post:
+      operationId: moveObject
+      summary: Move an object to another folder
+      parameters:
+        - $ref: '#/components/parameters/FileId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target_folder_id]
+              properties:
+                target_folder_id:
+                  type: string
+      responses:
+        '200':
+          description: Object moved
+  /objects/{fileId}/visibility:
+    patch:
+      operationId: setVisibility
+      summary: Set object visibility (private/public)
+      parameters:
+        - $ref: '#/components/parameters/FileId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [visibility]
+              properties:
+                visibility:
+                  type: string
+                  enum: [private, public]
+      responses:
+        '200':
+          description: Visibility updated
+  /shares:
+    post:
+      operationId: createShareLink
+      summary: Create a signed share link
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [object_id]
+              properties:
+                object_id:
+                  type: string
+                ttl:
+                  type: integer
+                  description: seconds
+      responses:
+        '201':
+          description: Share link created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+  /shares/{linkId}:
+    delete:
+      operationId: revokeShareLink
+      summary: Revoke a share link
+      parameters:
+        - $ref: '#/components/parameters/LinkId'
+      responses:
+        '204':
+          description: Revoked
+  /shares/short:
+    post:
+      operationId: createShortLink
+      summary: Create a short URL
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [object_id]
+              properties:
+                object_id:
+                  type: string
+      responses:
+        '201':
+          description: Short link created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+  /shares/{linkId}/stats:
+    get:
+      operationId: shareLinkStats
+      summary: Get share link usage stats
+      parameters:
+        - $ref: '#/components/parameters/LinkId'
+      responses:
+        '200':
+          description: Stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+  /applications:
+    get:
+      operationId: listApplications
+      summary: List applications
+      responses:
+        '200':
+          description: Applications
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+    post:
+      operationId: registerApplication
+      summary: Register an application (non-human principal)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '201':
+          description: Application registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+  /applications/{applicationId}:
+    delete:
+      operationId: deleteApplication
+      summary: Delete an application
+      parameters:
+        - $ref: '#/components/parameters/ApplicationId'
+      responses:
+        '204':
+          description: Deleted
+  /applications/{applicationId}/keys:
+    post:
+      operationId: createAccessKey
+      summary: Create an access key (shown exactly once)
+      parameters:
+        - $ref: '#/components/parameters/ApplicationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                scope_folder_ids:
+                  type: array
+                  items:
+                    type: string
+                permissions:
+                  type: array
+                  items:
+                    type: string
+                    enum: [read, write, delete, share, admin]
+                expires_at:
+                  type: string
+                  format: date-time
+      responses:
+        '201':
+          description: Access key with plaintext secret (once)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+    get:
+      operationId: listAccessKeys
+      summary: List an application's access keys
+      parameters:
+        - $ref: '#/components/parameters/ApplicationId'
+      responses:
+        '200':
+          description: Keys (no secrets)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+  /applications/{applicationId}/keys/{keyId}:
+    delete:
+      operationId: revokeAccessKey
+      summary: Revoke an access key
+      parameters:
+        - $ref: '#/components/parameters/ApplicationId'
+        - $ref: '#/components/parameters/KeyId'
+      responses:
+        '204':
+          description: Revoked
+  /grants:
+    post:
+      operationId: createGrant
+      summary: Grant folder permission to a principal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [folder_id, principal_type, principal_id, permissions]
+              properties:
+                folder_id:
+                  type: string
+                principal_type:
+                  type: string
+                  enum: [user, application]
+                principal_id:
+                  type: string
+                permissions:
+                  type: array
+                  items:
+                    type: string
+                    enum: [read, write, delete, share]
+                expires_at:
+                  type: string
+                  format: date-time
+      responses:
+        '201':
+          description: Grant created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+  /grants/{grantId}:
+    delete:
+      operationId: revokeGrant
+      summary: Revoke a grant
+      parameters:
+        - $ref: '#/components/parameters/GrantId'
+      responses:
+        '204':
+          description: Revoked
+  /grants/folder/{folderId}:
+    get:
+      operationId: listFolderGrants
+      summary: List grants on a folder
+      parameters:
+        - $ref: '#/components/parameters/FolderId'
+      responses:
+        '200':
+          description: Grants
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+  /archives/extract:
+    post:
+      operationId: extractArchive
+      summary: Queue archive extraction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [file_id, target_folder_id]
+              properties:
+                file_id:
+                  type: string
+                target_folder_id:
+                  type: string
+      responses:
+        '202':
+          description: Extraction queued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      job_id:
+                        type: string
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+  /archives/bundle:
+    post:
+      operationId: createBundle
+      summary: Queue a bundle download
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [folder_id]
+              properties:
+                folder_id:
+                  type: string
+      responses:
+        '202':
+          description: Bundle queued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      job_id:
+                        type: string
+  /jobs/{jobId}:
+    get:
+      operationId: getJob
+      summary: Poll job status
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      responses:
+        '200':
+          description: Job status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+  /audit:
+    get:
+      operationId: listAuditEvents
+      summary: Query the tenant audit log
+      parameters:
+        - name: target_type
+          in: query
+          schema:
+            type: string
+        - name: target_id
+          in: query
+          schema:
+            type: string
+        - name: action
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: cursor
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Audit events
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+  /usage/me:
+    get:
+      operationId: myUsage
+      summary: Current tenant usage
+      responses:
+        '200':
+          description: Usage
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+  /usage/estimated-cost:
+    get:
+      operationId: estimatedCost
+      summary: Estimated monthly cost from the rate card (M18)
+      responses:
+        '200':
+          description: Estimated cost
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+  /admin/backends:
+    get:
+      operationId: listBackends
+      summary: List storage backends (platform admin)
+      responses:
+        '200':
+          description: Backends
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+    post:
+      operationId: createBackend
+      summary: Register a storage backend
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, driver]
+              properties:
+                name:
+                  type: string
+                driver:
+                  type: string
+                  enum: [s3, r2, oss, gcs, azblob, disk]
+                config:
+                  type: object
+                credentials:
+                  type: object
+                rate_card:
+                  type: object
+      responses:
+        '201':
+          description: Backend registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+  /admin/backends/{backendId}:
+    get:
+      operationId: getBackend
+      summary: Get a storage backend
+      parameters:
+        - $ref: '#/components/parameters/BackendId'
+      responses:
+        '200':
+          description: Backend
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+    delete:
+      operationId: deleteBackend
+      summary: Delete a storage backend (refused if tenants use it)
+      parameters:
+        - $ref: '#/components/parameters/BackendId'
+      responses:
+        '204':
+          description: Deleted
+  /admin/backends/{backendId}/health:
+    post:
+      operationId: checkBackendHealth
+      summary: Run a health check against a backend
+      parameters:
+        - $ref: '#/components/parameters/BackendId'
+      responses:
+        '200':
+          description: Health status (raw error for admins)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+  /admin/tenants:
+    get:
+      operationId: listAllTenants
+      summary: List all tenants (platform admin)
+      responses:
+        '200':
+          description: Tenants
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+  /admin/usage:
+    get:
+      operationId: adminUsage
+      summary: Install-wide usage and cost (platform admin)
+      responses:
+        '200':
+          description: Usage snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+  /admin/stats:
+    get:
+      operationId: installStats
+      summary: Install statistics (platform admin)
+      responses:
+        '200':
+          description: Stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+  /health:
+    get:
+      operationId: health
+      summary: Health check
+      security: []
+      responses:
+        '200':
+          description: Healthy
+  /s/{slug}:
+    get:
+      operationId: resolveShortLink
+      summary: Resolve a short URL (HTML/redirect, not the envelope)
+      security: []
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Redirect to object
+        '410':
+          description: HTML "this link has expired"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: |
+        Human session JWT or a `blob_live_…` application access key. The
+        middleware discriminates by prefix; everything downstream sees one
+        principal.
+  parameters:
+    TenantId:
+      name: tenantId
+      in: path
+      required: true
+      schema:
+        type: string
+    FolderId:
+      name: folderId
+      in: path
+      required: true
+      schema:
+        type: string
+    FileId:
+      name: fileId
+      in: path
+      required: true
+      schema:
+        type: string
+    LinkId:
+      name: linkId
+      in: path
+      required: true
+      schema:
+        type: string
+    ApplicationId:
+      name: applicationId
+      in: path
+      required: true
+      schema:
+        type: string
+    KeyId:
+      name: keyId
+      in: path
+      required: true
+      schema:
+        type: string
+    GrantId:
+      name: grantId
+      in: path
+      required: true
+      schema:
+        type: string
+    JobId:
+      name: jobId
+      in: path
+      required: true
+      schema:
+        type: string
+    BackendId:
+      name: backendId
+      in: path
+      required: true
+      schema:
+        type: string
+  schemas:
+    Platform:
+      type: string
+      enum: [web, mobile, desktop]
+    Role:
+      type: string
+      enum: [tenant_owner, tenant_admin, member, viewer]
+    SignupRequest:
+      type: object
+      required: [invite_token, email, password]
+      properties:
+        invite_token:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        display_name:
+          type: string
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+        platform:
+          $ref: '#/components/schemas/Platform'
+    Envelope:
+      type: object
+      properties:
+        data: {}
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+    Message:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+        content:
+          type: string
+    ErrorCode:
+      type: string
+      enum:
+        - invalid_credentials
+        - refresh_invalid
+        - key_revoked
+        - key_expired
+        - otp_invalid
+        - otp_rate_limited
+        - oauth_invalid
+        - pair_invalid
+        - config_invalid
+        - config_expired
+        - totp_required
+        - totp_invalid
+        - no_invitation
+        - forbidden
+        - quota_exceeded
+        - name_conflict
+        - folder_cycle
+        - object_pending
+        - backend_unreachable
+        - archive_rejected
+        - link_expired
+        - payload_too_large
+        - invite_invalid
+        - reset_token_invalid
+  responses:
+    AuthTokens:
+      description: Session tokens
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                type: object
+                required: [access_token, refresh_token]
+                properties:
+                  access_token:
+                    type: string
+                  refresh_token:
+                    type: string
+                  expires_in:
+                    type: integer
+                  totp_required:
+                    type: boolean
+                    description: set true when 2FA blocks session issue (M24)
+    BadRequest:
+      description: Validation or domain error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Envelope'
+    Conflict:
+      description: Resource conflict (name_conflict, object_pending)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Envelope'
+    ErrorResponse:
+      description: Error envelope with a documented code
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Envelope'
+    RateLimited:
+      description: Rate limited (Retry-After header set)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Envelope'
+    MessageResponse:
+      description: Confirmation message
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Envelope'

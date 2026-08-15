@@ -1,0 +1,19 @@
+# Task group — 02 design tokens
+
+**Depends on:** `01-setup.md` (Tailwind wired). **Blocks:** `06-shared-components.md` and every page file. **Ordering is the point:** pages built before this file exists accumulate one-off values.
+
+**Source:** `design/style-guide.md` — the single shared spec for both platforms. Everything here maps 1:1 to a token in that file; nothing is invented.
+
+- [ ] **Color — light and dark.** `color.background`, `surface`, `surface-raised`, `border`, `text`, `text-muted`, `primary`, `on-primary`, `primary-subtle`, `accent`, `error`, `success`, `warning`, `disabled`, `on-disabled` as CSS custom properties in `src/lib/tokens.css` (light values) and `:root[data-theme="dark"]` (dark values). The two `color.on-primary` values are **different per mode** (light `#FFFFFF`, dark `#17161D`) — the contrast caveat in the style guide is a constraint, not a footnote.
+- [ ] **Semantic storage-state mapping.** Public = warning, private = muted, active/healthy = success, expiring/pending = warning, revoked/failed/over-quota = error — as utility classes (`text-public`, `text-active`, …) so every page uses one mapping (`design/style-guide.md` §Colors).
+- [ ] **Type scale — every size with line-height.** `text.display` 29/36 bold, `heading-lg` 24/32 bold, `heading-md` 20/28 semibold, `heading-sm` 17/24 semibold, `body` 14/20, `body-strong` 14/20 semibold, `button` 14/20 semibold, `label` 12/20 medium, `caption` 12/20, `mono` 13/20. All line-heights on the 4px grid.
+- [ ] **Font families.** Inter (variable) with the `system-ui` fallback chain; JetBrains Mono with the monospace fallback. `text.mono` pairs with a copy button everywhere it's used.
+- [ ] **Spacing scale.** `space.xs` 4 · `sm` 8 · `md` 16 · `lg` 24 · `xl` 32 · `2xl` 48. File-table row padding is `space.sm` vertical — the data-dense default.
+- [ ] **Radius.** `radius.sm` 8 · `md` 12 · `lg` 20 · `full` 9999. One radius per component type, never varied per screen.
+- [ ] **Elevation.** `elevation.none` (1px border), `sm`, `md`, `lg` shadows. Border-only is the default; dark mode does **not** raise shadow opacity (style-guide note).
+- [ ] **Sizing / touch targets.** `size.touch-min` 40×40px web, `button-height` 48, `button-height-sm` 36, `input-height` 48, `icon` 24, `icon-sm` 20, `avatar` 40, `sidebar-width` 260, `navrail-width` 72, `tree-width` 280 (move-picker dialog only), `row-height` 44. `button-height-sm` is pointer-only, never the sole action on a touch screen.
+- [ ] **Motion.** `motion.fast` 150ms ease-out · `base` 250ms ease-in-out · `slow` 400ms ease-in-out. Respect OS "reduce motion" with an **instant** state change.
+- [ ] **Component specs — with all four states.** Button (primary/secondary/destructive/ghost): pressed, disabled, loading (spinner replaces label, width held), focus (2px primary outline + 2px offset). Input: focus (2px primary border), error (error border + message below), disabled. Card, Data table (header sticky, row hover/selected, skeleton rows), Dropzone (drag-over, rejected reverts 3s), Upload queue (determinate progress only), Status pill, Code/secret display (masked), Nav (sidebar/rail active states), Breadcrumbs (collapse >4 levels), Empty state, Skeleton loader, Permission-denied caption, Toast (error = icon/accent, not full-bg), `ConfirmDestructive` (typed-name for irreversible).
+- [ ] **Pages use tokens only.** Follow-on rule recorded in `02` file header and enforced in review: pages reference theme tokens/utility classes — never arbitrary `p-[13px]` or hex literals. The one exception class: `text.mono` on `color.surface` is itself the Code display spec.
+
+**tests:** a token-coverage grep that fails if a page file references a raw hex color or an arbitrary-value utility outside `src/lib/tokens.css`; a light/dark contrast check against the style guide's AA pairs.

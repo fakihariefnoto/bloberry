@@ -1,0 +1,7 @@
+package: bloberry
+output: sdk/go/client.gen.go
+generate:
+  - types
+  - client
+  - skip-prune
+  - skip-fmt

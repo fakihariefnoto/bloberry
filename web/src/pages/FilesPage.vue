@@ -5,6 +5,8 @@ import { Folder, FileText, ChevronRight, Upload, RefreshCw, MoreHorizontal, Glob
 import { api } from '../lib/api'
 import { useTenantStore } from '../stores/tenant'
 import AppButton from '../components/ui/AppButton.vue'
+import AppInput from '../components/ui/AppInput.vue'
+import AppModal from '../components/ui/AppModal.vue'
 
 interface FolderRec { id: string; name: string; path: string }
 interface ObjectRec { id: string; name: string; size_bytes: number; visibility: string; content_type: string; state: string; backend_name?: string; backend_driver?: string }
@@ -94,14 +96,41 @@ function openPicker() {
   fileInput.value?.click()
 }
 
+// Folder creation modal state
+const showCreateFolder = ref(false)
+const newFolderName = ref('')
+const folderError = ref('')
+const folderCreating = ref(false)
+
+function openCreateFolder() {
+  newFolderName.value = ''
+  folderError.value = ''
+  showCreateFolder.value = true
+}
+
+function closeCreateFolder() {
+  if (folderCreating.value) return
+  showCreateFolder.value = false
+  newFolderName.value = ''
+  folderError.value = ''
+}
+
 async function createFolder() {
-  const name = window.prompt('New folder name')
-  if (!name || !name.trim()) return
+  const name = newFolderName.value.trim()
+  if (!name) {
+    folderError.value = 'Folder name is required.'
+    return
+  }
+  folderError.value = ''
+  folderCreating.value = true
   try {
-    await api.post('/folders', { name: name.trim(), parent_id: folderId.value || 'root' })
+    await api.post('/folders', { name, parent_id: folderId.value || 'root' })
+    closeCreateFolder()
     load()
   } catch (e) {
-    alert((e as Error).message)
+    folderError.value = (e as Error).message
+  } finally {
+    folderCreating.value = false
   }
 }
 
@@ -174,7 +203,7 @@ async function uploadFiles(files: File[]) {
           <option v-for="b in backends" :key="b.id" :value="b.id">{{ b.name }} ({{ b.driver }})</option>
         </select>
         <AppButton variant="secondary" size="sm" @click="load"><RefreshCw class="h-4 w-4" /> Refresh</AppButton>
-        <AppButton variant="secondary" size="sm" @click="createFolder"><Folder class="h-4 w-4" /> New folder</AppButton>
+        <AppButton variant="secondary" size="sm" @click="openCreateFolder"><Folder class="h-4 w-4" /> New folder</AppButton>
         <input ref="fileInput" type="file" multiple class="hidden" @change="onFileInput" />
         <AppButton size="sm" :disabled="uploading" @click="openPicker"><Upload class="h-4 w-4" /> Upload</AppButton>
       </div>
@@ -257,6 +286,24 @@ async function uploadFiles(files: File[]) {
         </tbody>
       </table>
     </div>
+
+    <!-- New folder modal -->
+    <AppModal :open="showCreateFolder" title="New folder" description="Create a folder in the current directory." @close="closeCreateFolder">
+      <AppInput
+        v-model="newFolderName"
+        label="Folder name"
+        placeholder="e.g. Project Files"
+        :error="folderError"
+        autofocus
+        @keyup.enter="createFolder"
+      />
+      <template #footer>
+        <AppButton variant="ghost" :disabled="folderCreating" @click="closeCreateFolder">Cancel</AppButton>
+        <AppButton :loading="folderCreating" @click="createFolder">
+          Create folder
+        </AppButton>
+      </template>
+    </AppModal>
 
     <!-- Upload queue -->
     <div v-if="uploads.length" class="fixed bottom-4 right-4 w-80 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-raised)] p-4 shadow-[var(--shadow-md)]">

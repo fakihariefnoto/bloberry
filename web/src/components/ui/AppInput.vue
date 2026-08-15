@@ -12,6 +12,7 @@ const props = withDefaults(defineProps<{
   icon?: any // lucide component
   dark?: boolean
   autocomplete?: string
+  autofocus?: boolean
 }>(), { type: 'text', dark: false })
 
 const emit = defineEmits<{ 'update:modelValue': [string] }>()
@@ -37,6 +38,7 @@ const inputType = computed(() => (isPassword.value && show.value ? 'text' : prop
         :type="inputType"
         :placeholder="placeholder"
         :value="modelValue"
+        :autofocus="autofocus"
         class="h-full w-full bg-transparent text-sm outline-none placeholder:text-[#707777]"
         :class="dark ? 'text-white' : 'text-[var(--color-text)]'"
         :style="icon ? { paddingLeft: '2.5rem' } : { paddingLeft: '1rem' }"

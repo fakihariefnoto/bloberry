@@ -50,33 +50,27 @@ const goLogin = () => router.push({ name: 'login' })
 </script>
 
 <template>
-  <div class="flex min-h-screen items-center justify-center bg-[#012624] px-4">
+  <div class="flex min-h-screen items-center justify-center bg-[var(--color-background)] px-4">
     <div class="w-full max-w-md">
       <div class="mb-8 text-center">
-        <span class="mx-auto flex h-12 w-12 items-center justify-center rounded-[16px] bg-[#003734]">
-          <Boxes class="h-6 w-6 text-[#cbfffc]" />
+        <span class="mx-auto flex h-12 w-12 items-center justify-center rounded-[var(--radius-lg)] bg-[var(--color-primary-subtle)]">
+          <Boxes class="h-6 w-6 text-[var(--color-primary)]" />
         </span>
-        <h1 class="mt-4 text-[28px] font-medium leading-[1.0] tracking-[-0.02em] text-white">Set up Bloberry</h1>
-        <p class="mt-2 text-sm text-[#bbc7c6]">One-time first-run — create your admin account and first tenant.</p>
+        <h1 class="mt-4 text-3xl font-bold tracking-tight text-[var(--color-text)]">Set up Bloberry</h1>
+        <p class="mt-2 text-sm text-[var(--color-text-muted)]">One-time first-run — create your admin account and first tenant.</p>
       </div>
 
-      <div v-if="done" class="rounded-[16px] bg-[#003734] p-8 text-center">
-        <CheckCircle2 class="mx-auto h-10 w-10 text-[#cbfffc]" />
-        <h2 class="mt-4 text-xl font-medium text-white">You're ready</h2>
-        <p class="mt-2 text-sm text-[#bbc7c6]">Platform admin, tenant and local disk backend created.</p>
-        <button
-          class="mt-6 w-full rounded-md py-4 text-xs font-medium uppercase tracking-[0.08em] text-[#012624]"
-          style="background: linear-gradient(90deg, rgb(0,130,124) 0%, rgb(203,255,252) 60%, rgb(250,209,255) 100%)"
-          @click="goLogin"
-        >
-          Continue to sign in
-        </button>
+      <div v-if="done" class="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-raised)] p-8 text-center shadow-[var(--shadow-md)]">
+        <CheckCircle2 class="mx-auto h-10 w-10 text-[var(--color-success)]" />
+        <h2 class="mt-4 text-xl font-bold text-[var(--color-text)]">You're ready</h2>
+        <p class="mt-2 text-sm text-[var(--color-text-muted)]">Platform admin, tenant and local disk backend created.</p>
+        <AppButton class="mt-6 w-full" @click="goLogin">Continue to sign in</AppButton>
       </div>
 
-      <div v-else class="flex flex-col gap-4 rounded-[16px] bg-[#003734] p-8">
-        <p v-if="!stillNeeded" class="mb-2 rounded-md bg-[rgba(3,81,75,0.5)] p-3 text-xs text-[#edfffe]">
+      <div v-else class="flex flex-col gap-4 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-raised)] p-8 shadow-[var(--shadow-md)]">
+        <p v-if="!stillNeeded" class="mb-2 rounded-[var(--radius-sm)] bg-[var(--color-primary-subtle)] p-3 text-xs text-[var(--color-text)]">
           This install is already configured.
-          <button class="text-[#cbfffc] underline" @click="goLogin">Go to sign in</button>
+          <button class="text-[var(--color-primary)] underline" @click="goLogin">Go to sign in</button>
         </p>
 
         <AppInput v-model="email" label="Email" type="email" placeholder="admin@company.com" :icon="Mail" />
@@ -85,7 +79,7 @@ const goLogin = () => router.push({ name: 'login' })
         <AppInput v-model="tenantName" label="Tenant name" placeholder="Acme Corp" :icon="Building2" />
         <AppInput v-model="tenantSlug" label="Tenant slug" placeholder="acme (blank = derived)" :icon="AtSign" :hint="'Used in URLs and short links'" />
 
-        <p v-if="error" class="text-xs text-[#fde9ff]">{{ error }}</p>
+        <p v-if="error" class="text-xs text-[var(--color-error)]">{{ error }}</p>
 
         <AppButton :loading="loading" :disabled="!stillNeeded" @click="submit">
           Create admin &amp; tenant

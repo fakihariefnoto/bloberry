@@ -37,33 +37,33 @@ async function submit() {
 </script>
 
 <template>
-  <div class="flex min-h-screen items-center justify-center bg-[#012624] px-4">
+  <div class="flex min-h-screen items-center justify-center bg-[var(--color-background)] px-4">
     <div class="w-full max-w-sm">
       <div class="mb-8 text-center">
-        <span class="mx-auto flex h-12 w-12 items-center justify-center rounded-[16px] bg-[#003734]">
-          <Boxes class="h-6 w-6 text-[#cbfffc]" />
+        <span class="mx-auto flex h-12 w-12 items-center justify-center rounded-[var(--radius-lg)] bg-[var(--color-primary-subtle)]">
+          <Boxes class="h-6 w-6 text-[var(--color-primary)]" />
         </span>
-        <h1 class="mt-4 text-[28px] font-medium leading-[1.0] tracking-[-0.02em] text-white">Bloberry</h1>
-        <p class="mt-2 text-sm text-[#bbc7c6]">Sign in to your storage</p>
+        <h1 class="mt-4 text-3xl font-bold tracking-tight text-[var(--color-text)]">Bloberry</h1>
+        <p class="mt-2 text-sm text-[var(--color-text-muted)]">Sign in to your storage</p>
       </div>
 
-      <div class="rounded-[16px] bg-[#003734] p-8">
+      <div class="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-raised)] p-8 shadow-[var(--shadow-md)]">
         <form class="flex flex-col gap-4" @submit.prevent="submit">
           <AppInput v-model="email" label="Email" type="email" placeholder="you@company.com" :icon="Mail" />
           <AppInput v-model="password" label="Password" type="password" placeholder="••••••••" :icon="Lock" :error="error" />
-          <AppButton type="submit" variant="gradient" :loading="loading">
+          <AppButton type="submit" :loading="loading">
             Log in
             <ArrowRight class="ml-2 h-4 w-4" />
           </AppButton>
         </form>
 
         <div class="mt-5 flex flex-col gap-1 text-sm">
-          <button class="text-left text-[#cbfffc] hover:underline" @click="loginOtp">Use a code instead</button>
-          <button class="text-left text-[#cbfffc] hover:underline" @click="loginForgot">Forgot password?</button>
+          <button class="text-left text-[var(--color-primary)] hover:underline" @click="loginOtp">Use a code instead</button>
+          <button class="text-left text-[var(--color-primary)] hover:underline" @click="loginForgot">Forgot password?</button>
         </div>
       </div>
 
-      <p class="mt-6 text-center text-xs text-[#707777]">Powered by Bloberry · storage-agnostic object service</p>
+      <p class="mt-6 text-center text-xs text-[var(--color-text-muted)]">Powered by Bloberry · storage-agnostic object service</p>
     </div>
   </div>
 </template>

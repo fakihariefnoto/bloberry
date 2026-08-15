@@ -62,7 +62,7 @@ const packets: Packet[] = Array.from({ length: 18 }, () => ({
   a: Math.floor(Math.random() * nodes.length),
   b: Math.floor(Math.random() * nodes.length),
   t: Math.random(),
-  speed: 0.005 + Math.random() * 0.008,
+  speed: 0.003 + Math.random() * 0.004,
 }))
 
 function tick(now: number) {
@@ -86,7 +86,7 @@ function tick(now: number) {
   const bandY = [h * 0.24, h * 0.44, h * 0.64]
   const spacing = COL_GAP
   const cols = Math.floor(w / spacing) + 2
-  const t = reduced ? 0 : now / 2600
+  const t = reduced ? 0 : now / 6000
 
   // wave follows the mouse: a smooth bump that glides toward the cursor
   if (!reduced) {
@@ -94,11 +94,11 @@ function tick(now: number) {
       const rect = wr.getBoundingClientRect()
       const mx = mouse.x - rect.left
       const my = mouse.y - rect.top
-      follow.x += (mx - follow.x) * 0.08
-      follow.y += (my - follow.y) * 0.08
-      bump.amp += (1 - bump.amp) * 0.06
+      follow.x += (mx - follow.x) * 0.05
+      follow.y += (my - follow.y) * 0.05
+      bump.amp += (1 - bump.amp) * 0.04
     } else {
-      bump.amp += (0 - bump.amp) * 0.03
+      bump.amp += (0 - bump.amp) * 0.02
     }
   }
 
@@ -107,7 +107,7 @@ function tick(now: number) {
     const x = (n.col % cols) * spacing + (n.col % 2 === 0 ? -14 : 14) + spacing / 2
     const amp = 16 + (n.band % 2) * 8
     const wave = Math.sin(x / 90 + t + n.phase) * amp
-    const wave2 = Math.sin(x / 47 - t * 1.4 + n.band) * 5
+    const wave2 = Math.sin(x / 47 - t * 0.8 + n.band) * 5
     let y = bandY[n.band] + wave + wave2
 
     // gaussian bump under the cursor — a soft crest, never a strong push

@@ -23,12 +23,18 @@ generate-server: api/openapi.yaml
 
 web:
 	$(MAKE) -C web build
-	rm -rf internal/platform/web/static
+	rm -rf internal/platform/web/static cmd/bloberry-desktop/web
+	mkdir -p cmd/bloberry-desktop/web
 	cp -r web/dist internal/platform/web/static
+	cp -r web/dist/* cmd/bloberry-desktop/web/
 
 go-build:
 	go build -o $(SERVER) ./cmd/bloberry-server
 	go build -o $(CLI) ./cmd/bloberry
+
+desktop:
+	$(MAKE) web
+	go build -o $(BIN)/bloberry-desktop ./cmd/bloberry-desktop
 
 # Dev infra + app (01-setup smoke run).
 dev:

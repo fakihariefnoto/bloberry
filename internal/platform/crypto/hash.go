@@ -72,7 +72,7 @@ func NewID() string { return RandomID(12) }
 // 17 random chars. Makes engine IDs readable in logs, URLs and the UI.
 func NewStorageID(driver string) string {
 	code := map[string]string{
-		"s3": "S3-", "r2": "R2-", "oss": "OSS", "gcs": "GCS", "azblob": "AZB", "disk": "DSK",
+		"s3": "S3A", "r2": "R2C", "oss": "OSS", "gcs": "GCS", "azblob": "AZB", "disk": "DSK",
 	}[driver]
 	if code == "" {
 		code = "STO"

@@ -8,7 +8,7 @@ import (
 
 func TestNewStorageID(t *testing.T) {
 	cases := map[string]string{
-		"s3": "S3-", "r2": "R2-", "oss": "OSS", "gcs": "GCS", "azblob": "AZB", "disk": "DSK", "weird": "STO",
+		"s3": "S3A", "r2": "R2C", "oss": "OSS", "gcs": "GCS", "azblob": "AZB", "disk": "DSK", "weird": "STO",
 	}
 	for driver, wantPrefix := range cases {
 		id := NewStorageID(driver)

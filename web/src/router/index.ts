@@ -48,6 +48,10 @@ const router = createRouter({
 
 router.beforeEach((to) => {
   const auth = useAuthStore()
+  // Already signed in? Never show the landing — go straight to the dashboard.
+  if (to.name === 'landing' && auth.isAuthenticated) {
+    return { name: 'files' }
+  }
   if (!to.meta.public && !auth.isAuthenticated) {
     return { name: 'login', query: { next: to.fullPath } }
   }

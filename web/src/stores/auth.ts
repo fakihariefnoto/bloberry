@@ -96,5 +96,28 @@ export const useAuthStore = defineStore('auth', {
     bootstrap() {
       if (this.accessToken) setToken(this.accessToken)
     },
+    // Called once at app boot: if a stored access token is missing or expired,
+    // rotate it via the refresh token so a page refresh never lands on a 401.
+    async restoreSession() {
+      if (!this.accessToken) return
+      setToken(this.accessToken)
+      if (isJwtExpired(this.accessToken)) {
+        await this.refresh()
+      }
+    },
   },
 })
+
+// Decodes the exp claim of a JWT without verifying (verification happens on
+// the server; this only decides whether to refresh proactively).
+function isJwtExpired(token: string): boolean {
+  try {
+    const payload = token.split('.')[1]
+    if (!payload) return false
+    const decoded = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')))
+    if (typeof decoded.exp !== 'number') return false
+    return decoded.exp * 1000 <= Date.now()
+  } catch {
+    return false
+  }
+}

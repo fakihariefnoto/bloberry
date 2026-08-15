@@ -13,6 +13,10 @@ app.use(router)
 const auth = useAuthStore()
 auth.bootstrap()
 
+// Rotate a stale/expired access token up front so a page refresh never
+// bounces through a 401 (the interceptor is the safety net for the rest).
+auth.restoreSession()
+
 // When a refresh attempt fails (expired/revoked session), clear local state
 // and send the user to login — without this, a page refresh with a stale
 // access token silently strands the user on a blank/unauthenticated dashboard.

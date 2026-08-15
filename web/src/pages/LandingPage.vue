@@ -6,20 +6,15 @@ import {
   HardDrive, Database, Cloud, Lock, Sparkles, Zap, Terminal, Layers,
 } from 'lucide-vue-next'
 import { api } from '../lib/api'
-import { useAuthStore } from '../stores/auth'
 import StorageConstellation from '../components/StorageConstellation.vue'
 
 const router = useRouter()
-const auth = useAuthStore()
 const needsSetup = ref(false)
 const checking = ref(true)
 
 onMounted(async () => {
-  // Already signed in? Straight to the dashboard.
-  if (auth.isAuthenticated) {
-    router.replace({ name: 'files' })
-    return
-  }
+  // Router guard redirects authenticated users to /app/files before this
+  // mounts, so the landing never renders for them.
   document.documentElement.dataset.theme = 'dark'
   try {
     const st = await api.get<{ needs_setup: boolean }>('/setup/status')

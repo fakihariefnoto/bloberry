@@ -148,7 +148,7 @@ func main() {
 	adminUC := adminuc.NewUsecase(adminuc.Deps{Repo: adminRepo, Registry: reg, Envelope: crypto.NewEnvelopeOrPanic(cfg.CredentialEncryptionKey), Counters: adminRepo, AllTenants: tenantRepo})
 
 	setupRepo := setuprepo.New(mdb.DB)
-	setupUC := setupuc.NewUsecase(setupuc.Deps{Repo: setupRepo, DiskRoot: envOr("DISK_STORAGE_PATH", "/var/lib/bloberry/objects")})
+	setupUC := setupuc.NewUsecase(setupuc.Deps{Repo: setupRepo, DiskRoot: envOr("DISK_STORAGE_PATH", defaultDiskRoot()), Registry: reg})
 
 	// Bootstrap: register all stored backends into the in-memory driver
 	// registry at boot so the registry survives restarts (ADR-2).
@@ -468,6 +468,21 @@ type countersRepo interface {
 	CountTenants(ctx context.Context) (int64, error)
 }
 
+// defaultDiskRoot returns a writable default for the setup-created disk
+// backend: /var/lib/bloberry/objects when we can create it, otherwise a
+// user-writable path (dev-friendly; a real install sets DISK_STORAGE_PATH).
+func defaultDiskRoot() string {
+	root := "/var/lib/bloberry/objects"
+	if os.MkdirAll(root, 0o750) == nil {
+		return root
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "./bloberry-objects"
+	}
+	return home + "/.bloberry/objects"
+}
+
 // bootstrapBackends registers every stored storage_backend into the driver
 // registry at boot, decrypting credentials in memory (TRD R7).
 func bootstrapBackends(ctx context.Context, db *mongo.Database, reg *registry.Registry, cfg configT) error {
@@ -487,13 +502,22 @@ func bootstrapBackends(ctx context.Context, db *mongo.Database, reg *registry.Re
 		}
 		credBytes, err := env.Decrypt(b.CredentialsEncrypted)
 		if err != nil {
-			continue
+			// Empty encrypted credentials (e.g. a setup-created disk backend)
+			// decrypt to nothing — that's not a failure, just no credentials.
+			if len(b.CredentialsEncrypted) > 0 {
+				continue
+			}
+			credBytes = []byte("{}")
 		}
 		var creds map[string]interface{}
 		_ = json.Unmarshal(credBytes, &creds)
-		_, _ = reg.Register(registry.BackendRecord{
+		if _, err := reg.Register(registry.BackendRecord{
 			ID: b.ID, DriverType: b.Driver, Config: b.Config, Credentials: creds,
-		})
+		}); err != nil {
+			log.Printf("bootstrap: FAILED to register backend %s (%s): %v", b.ID, b.Driver, err)
+			continue
+		}
+		log.Printf("bootstrap: registered backend %s (%s)", b.ID, b.Driver)
 	}
 	return cur.Err()
 }

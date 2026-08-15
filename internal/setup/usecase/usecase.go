@@ -8,20 +8,30 @@ import (
 	"github.com/fakihariefnoto/bloberry/internal/platform/crypto"
 	"github.com/fakihariefnoto/bloberry/internal/platform/httpx"
 	"github.com/fakihariefnoto/bloberry/internal/setup"
+	"github.com/fakihariefnoto/bloberry/internal/storage"
+	"github.com/fakihariefnoto/bloberry/internal/storage/registry"
 )
 
 type usecase struct {
-	repo          setup.Repository
-	diskRoot      string
+	repo     setup.Repository
+	diskRoot string
+	reg      registryAdapter
+}
+
+// registryAdapter is the narrow registry interface setup needs: register a
+// freshly-created disk backend so it's usable without a server restart.
+type registryAdapter interface {
+	Register(record registry.BackendRecord) (storage.Driver, error)
 }
 
 type Deps struct {
 	Repo     setup.Repository
 	DiskRoot string
+	Registry registryAdapter
 }
 
 func NewUsecase(d Deps) setup.Usecase {
-	return &usecase{repo: d.Repo, diskRoot: d.DiskRoot}
+	return &usecase{repo: d.Repo, diskRoot: d.DiskRoot, reg: d.Registry}
 }
 
 var _ setup.Usecase = (*usecase)(nil)
@@ -84,6 +94,13 @@ func (u *usecase) Run(ctx context.Context, email, password, displayName, tenantN
 	}
 	if err := u.repo.InsertBackend(ctx, be); err != nil {
 		return err
+	}
+	// Register the driver immediately so the first upload works without a
+	// server restart (bootstrap only runs at boot).
+	if u.reg != nil {
+		_, _ = u.reg.Register(registry.BackendRecord{
+			ID: be.ID, DriverType: be.Driver, Config: be.Config, Credentials: map[string]interface{}{},
+		})
 	}
 
 	// 3. first tenant

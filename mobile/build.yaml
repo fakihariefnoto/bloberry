@@ -1,0 +1,9 @@
+# Global snake_case for JSON models (mobile/README.md — the silent null-break trap).
+# The Go backend emits snake_case; without this, json_serializable deserializes
+# every field to null and screens render empty with no error.
+targets:
+  $default:
+    builders:
+      json_serializable:
+        options:
+          field_rename: snake

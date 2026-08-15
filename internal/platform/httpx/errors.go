@@ -3,6 +3,8 @@ package httpx
 import (
 	"errors"
 	"net/http"
+
+	"github.com/fakihariefnoto/bloberry/internal/platform/db"
 )
 
 type Code string
@@ -74,6 +76,11 @@ func From(err error) *HTTPError {
 	if errors.As(err, &he) {
 		return he
 	}
+	// Mongo unique-index violations (E11000) are domain conflicts — a duplicate
+	// slug, name, secret_hash or slug. Never surface as "internal error".
+	if db.IsDuplicateKey(err) {
+		return NewError(ErrNameConflict, http.StatusConflict)
+	}
 	return NewError(ErrInternal, http.StatusInternalServerError)
 }
 
@@ -83,8 +90,12 @@ func WriteError(w http.ResponseWriter, err error) {
 		ErrorWithContent(w, he.Status, string(he.Code), "internal error")
 		return
 	}
-	if he.Content != "" {
-		ErrorWithContent(w, he.Status, string(he.Code), he.Content)
+	content := he.Content
+	if content == "" && he.Code == ErrNameConflict {
+		content = "An item with that name or identifier already exists."
+	}
+	if content != "" {
+		ErrorWithContent(w, he.Status, string(he.Code), content)
 		return
 	}
 	Error(w, he.Status, string(he.Code))

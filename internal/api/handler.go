@@ -590,7 +590,7 @@ func (h *Handler) CreateFolder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	parentID := req.ParentID
-	if parentID == "" {
+	if parentID == "" || parentID == "root" {
 		root, err := h.Folders.GetRoot(r.Context(), p.TenantID)
 		if err == nil {
 			parentID = root.ID

@@ -25,9 +25,11 @@ const apps = ref<AppRec[]>([])
 const loading = ref(false)
 
 const showCreate = ref(false)
+const keyType = ref<'tenant' | 'app'>('tenant')
 const appId = ref('')
 const perms = ref(['read'])
 const permOptions = ['read', 'write', 'delete', 'share', 'admin']
+const scopeFolders = ref('')
 const creating = ref(false)
 const error = ref('')
 const createdSecret = ref('')
@@ -47,16 +49,22 @@ onMounted(() => { load(); loadApps() })
 function openCreate() {
   error.value = ''
   createdSecret.value = ''
+  keyType.value = 'tenant'
   appId.value = apps.value[0]?.id || ''
   perms.value = ['read']
+  scopeFolders.value = ''
   showCreate.value = true
 }
 
 async function createKey() {
   error.value = ''
   creating.value = true
+  const scope = scopeFolders.value.split(',').map((s) => s.trim()).filter(Boolean)
   try {
-    const res = await api.post<{ secret: string }>(`/applications/${appId.value}/keys`, { permissions: perms.value })
+    const body = { permissions: perms.value, scope_folder_ids: scope }
+    const res = keyType.value === 'tenant'
+      ? await api.post<{ secret: string }>('/keys', body)
+      : await api.post<{ secret: string }>(`/applications/${appId.value}/keys`, body)
     createdSecret.value = res.secret
     load()
   } catch (e) { error.value = (e as Error).message } finally { creating.value = false }
@@ -89,11 +97,43 @@ function copySecret() {
     <AppModal :open="showCreate" title="Create API key" description="The secret is shown once — copy it now." @close="showCreate = false">
       <div v-if="!createdSecret" class="flex flex-col gap-4">
         <div class="flex flex-col gap-1">
+          <label class="text-xs font-medium text-[var(--color-text-muted)]">Key type</label>
+          <div class="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              class="h-11 rounded-[var(--radius-md)] border text-xs font-medium"
+              :class="keyType === 'tenant'
+                ? 'border-[var(--color-primary)] bg-[var(--color-primary-subtle)] text-[var(--color-primary)]'
+                : 'border-[var(--color-border)] text-[var(--color-text-muted)]'"
+              @click="keyType = 'tenant'"
+            >
+              Tenant key
+            </button>
+            <button
+              type="button"
+              class="h-11 rounded-[var(--radius-md)] border text-xs font-medium"
+              :class="keyType === 'app'
+                ? 'border-[var(--color-primary)] bg-[var(--color-primary-subtle)] text-[var(--color-primary)]'
+                : 'border-[var(--color-border)] text-[var(--color-text-muted)]'"
+              @click="keyType = 'app'"
+            >
+              Application key
+            </button>
+          </div>
+        </div>
+
+        <div v-if="keyType === 'app'" class="flex flex-col gap-1">
           <label class="text-xs font-medium text-[var(--color-text-muted)]">Application</label>
           <select v-model="appId" class="h-12 w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm outline-none focus:border-[var(--color-primary)] focus:border-2">
             <option v-for="a in apps" :key="a.id" :value="a.id">{{ a.name }}</option>
           </select>
         </div>
+
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-medium text-[var(--color-text-muted)]">Folder scope</label>
+          <input v-model="scopeFolders" placeholder="Folder IDs, comma-separated (blank = whole tenant)" class="h-12 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-xs outline-none focus:border-[var(--color-primary)] focus:border-2" />
+        </div>
+
         <div class="flex flex-col gap-1">
           <label class="text-xs font-medium text-[var(--color-text-muted)]">Permissions</label>
           <div class="flex flex-wrap gap-2">
@@ -111,6 +151,9 @@ function copySecret() {
             </button>
           </div>
         </div>
+        <p class="text-xs text-[var(--color-text-muted)]">
+          The key acts only within this tenant, restricted to the selected folders and permissions.
+        </p>
         <p v-if="error" class="rounded-[var(--radius-sm)] border border-[var(--color-error)] bg-[var(--color-error)]/10 px-3 py-2 text-xs text-[var(--color-error)]">{{ error }}</p>
         <div class="flex justify-end gap-2">
           <AppButton variant="ghost" @click="showCreate = false">Cancel</AppButton>

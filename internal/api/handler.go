@@ -1037,6 +1037,35 @@ func (h *Handler) ResolveShortLink(w http.ResponseWriter, r *http.Request, slug 
 
 // --- applications & keys ---
 
+func (h *Handler) CreateTenantKey(w http.ResponseWriter, r *http.Request) {
+	p := principalOf(r)
+	if p == nil {
+		httpx.Error(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	var req struct {
+		ScopeFolderIDs []string `json:"scope_folder_ids"`
+		Permissions    []string `json:"permissions"`
+		ExpiresAt      *string  `json:"expires_at"`
+	}
+	if err := decodeBody(r, &req); err != nil {
+		httpx.Error(w, http.StatusBadRequest, "bad_request")
+		return
+	}
+	var exp *time.Time
+	if req.ExpiresAt != nil {
+		if t, err := time.Parse(time.RFC3339, *req.ExpiresAt); err == nil {
+			exp = &t
+		}
+	}
+	key, err := h.APIKeys.CreateTenantKey(r.Context(), p.TenantID, req.ScopeFolderIDs, req.Permissions, exp)
+	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	data(w, http.StatusCreated, key)
+}
+
 func (h *Handler) ListAllKeys(w http.ResponseWriter, r *http.Request) {
 	p := principalOf(r)
 	if p == nil {

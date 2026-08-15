@@ -242,6 +242,33 @@ func (e CreateGrantJSONBodyPrincipalType) Valid() bool {
 	}
 }
 
+// Defines values for CreateTenantKeyJSONBodyPermissions.
+const (
+	CreateTenantKeyJSONBodyPermissionsAdmin  CreateTenantKeyJSONBodyPermissions = "admin"
+	CreateTenantKeyJSONBodyPermissionsDelete CreateTenantKeyJSONBodyPermissions = "delete"
+	CreateTenantKeyJSONBodyPermissionsRead   CreateTenantKeyJSONBodyPermissions = "read"
+	CreateTenantKeyJSONBodyPermissionsShare  CreateTenantKeyJSONBodyPermissions = "share"
+	CreateTenantKeyJSONBodyPermissionsWrite  CreateTenantKeyJSONBodyPermissions = "write"
+)
+
+// Valid indicates whether the value is a known member of the CreateTenantKeyJSONBodyPermissions enum.
+func (e CreateTenantKeyJSONBodyPermissions) Valid() bool {
+	switch e {
+	case CreateTenantKeyJSONBodyPermissionsAdmin:
+		return true
+	case CreateTenantKeyJSONBodyPermissionsDelete:
+		return true
+	case CreateTenantKeyJSONBodyPermissionsRead:
+		return true
+	case CreateTenantKeyJSONBodyPermissionsShare:
+		return true
+	case CreateTenantKeyJSONBodyPermissionsWrite:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SetVisibilityJSONBodyVisibility.
 const (
 	Private SetVisibilityJSONBodyVisibility = "private"
@@ -506,6 +533,16 @@ type CreateGrantJSONBodyPermissions string
 // CreateGrantJSONBodyPrincipalType defines parameters for CreateGrant.
 type CreateGrantJSONBodyPrincipalType string
 
+// CreateTenantKeyJSONBody defines parameters for CreateTenantKey.
+type CreateTenantKeyJSONBody struct {
+	ExpiresAt      *time.Time                            `json:"expires_at,omitempty"`
+	Permissions    *[]CreateTenantKeyJSONBodyPermissions `json:"permissions,omitempty"`
+	ScopeFolderIds *[]string                             `json:"scope_folder_ids,omitempty"`
+}
+
+// CreateTenantKeyJSONBodyPermissions defines parameters for CreateTenantKey.
+type CreateTenantKeyJSONBodyPermissions string
+
 // DirectUploadParams defines parameters for DirectUpload.
 type DirectUploadParams struct {
 	FolderId    string  `form:"folder_id" json:"folder_id"`
@@ -711,6 +748,9 @@ type MoveFolderJSONRequestBody MoveFolderJSONBody
 // CreateGrantJSONRequestBody defines body for CreateGrant for application/json ContentType.
 type CreateGrantJSONRequestBody CreateGrantJSONBody
 
+// CreateTenantKeyJSONRequestBody defines body for CreateTenantKey for application/json ContentType.
+type CreateTenantKeyJSONRequestBody CreateTenantKeyJSONBody
+
 // MultipartInitJSONRequestBody defines body for MultipartInit for application/json ContentType.
 type MultipartInitJSONRequestBody MultipartInitJSONBody
 
@@ -908,6 +948,9 @@ type ServerInterface interface {
 	// ListAllKeys List every access key in the tenant across all applications
 	// (GET /keys)
 	ListAllKeys(w http.ResponseWriter, r *http.Request)
+	// CreateTenantKey Create a tenant-scoped API key (not tied to an application)
+	// (POST /keys)
+	CreateTenantKey(w http.ResponseWriter, r *http.Request)
 	// RevokeKeyAny Revoke any access key in the tenant
 	// (DELETE /keys/{keyId})
 	RevokeKeyAny(w http.ResponseWriter, r *http.Request, keyId KeyId)
@@ -1304,6 +1347,12 @@ func (_ Unimplemented) GetJob(w http.ResponseWriter, r *http.Request, jobId JobI
 // ListAllKeys List every access key in the tenant across all applications
 // (GET /keys)
 func (_ Unimplemented) ListAllKeys(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// CreateTenantKey Create a tenant-scoped API key (not tied to an application)
+// (POST /keys)
+func (_ Unimplemented) CreateTenantKey(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -2468,6 +2517,20 @@ func (siw *ServerInterfaceWrapper) ListAllKeys(w http.ResponseWriter, r *http.Re
 	handler.ServeHTTP(w, r)
 }
 
+// CreateTenantKey operation middleware
+func (siw *ServerInterfaceWrapper) CreateTenantKey(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateTenantKey(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // RevokeKeyAny operation middleware
 func (siw *ServerInterfaceWrapper) RevokeKeyAny(w http.ResponseWriter, r *http.Request) {
 
@@ -3575,6 +3638,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/keys", wrapper.ListAllKeys)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/keys", wrapper.CreateTenantKey)
 	})
 	r.Group(func(r chi.Router) {
 		r.Delete(options.BaseURL+"/keys/{keyId}", wrapper.RevokeKeyAny)

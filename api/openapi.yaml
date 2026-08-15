@@ -1052,6 +1052,35 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Envelope'
+    post:
+      operationId: createTenantKey
+      summary: Create a tenant-scoped API key (not tied to an application)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                scope_folder_ids:
+                  type: array
+                  items:
+                    type: string
+                permissions:
+                  type: array
+                  items:
+                    type: string
+                    enum: [read, write, delete, share, admin]
+                expires_at:
+                  type: string
+                  format: date-time
+      responses:
+        '201':
+          description: Key with plaintext secret (once)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
   /keys/{keyId}:
     delete:
       operationId: revokeKeyAny

@@ -45,6 +45,8 @@ type Usecase interface {
 	List(ctx context.Context, tenantID string) ([]domain.Application, error)
 	Delete(ctx context.Context, tenantID, id string) error
 	CreateKey(ctx context.Context, tenantID, applicationID string, scope []string, perms []string, expiresAt *time.Time) (*CreatedKey, error)
+	// CreateTenantKey creates a tenant-scoped key not tied to an application.
+	CreateTenantKey(ctx context.Context, tenantID string, scope []string, perms []string, expiresAt *time.Time) (*CreatedKey, error)
 	ListKeys(ctx context.Context, tenantID, applicationID string) ([]domain.AccessKey, error)
 	// ListAllKeys returns keys across all applications, enriched with the app name.
 	ListAllKeys(ctx context.Context, tenantID string) ([]KeyWithApp, error)

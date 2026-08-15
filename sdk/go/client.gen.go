@@ -246,6 +246,33 @@ func (e CreateGrantJSONBodyPrincipalType) Valid() bool {
 	}
 }
 
+// Defines values for CreateTenantKeyJSONBodyPermissions.
+const (
+	CreateTenantKeyJSONBodyPermissionsAdmin  CreateTenantKeyJSONBodyPermissions = "admin"
+	CreateTenantKeyJSONBodyPermissionsDelete CreateTenantKeyJSONBodyPermissions = "delete"
+	CreateTenantKeyJSONBodyPermissionsRead   CreateTenantKeyJSONBodyPermissions = "read"
+	CreateTenantKeyJSONBodyPermissionsShare  CreateTenantKeyJSONBodyPermissions = "share"
+	CreateTenantKeyJSONBodyPermissionsWrite  CreateTenantKeyJSONBodyPermissions = "write"
+)
+
+// Valid indicates whether the value is a known member of the CreateTenantKeyJSONBodyPermissions enum.
+func (e CreateTenantKeyJSONBodyPermissions) Valid() bool {
+	switch e {
+	case CreateTenantKeyJSONBodyPermissionsAdmin:
+		return true
+	case CreateTenantKeyJSONBodyPermissionsDelete:
+		return true
+	case CreateTenantKeyJSONBodyPermissionsRead:
+		return true
+	case CreateTenantKeyJSONBodyPermissionsShare:
+		return true
+	case CreateTenantKeyJSONBodyPermissionsWrite:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SetVisibilityJSONBodyVisibility.
 const (
 	Private SetVisibilityJSONBodyVisibility = "private"
@@ -510,6 +537,16 @@ type CreateGrantJSONBodyPermissions string
 // CreateGrantJSONBodyPrincipalType defines parameters for CreateGrant.
 type CreateGrantJSONBodyPrincipalType string
 
+// CreateTenantKeyJSONBody defines parameters for CreateTenantKey.
+type CreateTenantKeyJSONBody struct {
+	ExpiresAt      *time.Time                            `json:"expires_at,omitempty"`
+	Permissions    *[]CreateTenantKeyJSONBodyPermissions `json:"permissions,omitempty"`
+	ScopeFolderIds *[]string                             `json:"scope_folder_ids,omitempty"`
+}
+
+// CreateTenantKeyJSONBodyPermissions defines parameters for CreateTenantKey.
+type CreateTenantKeyJSONBodyPermissions string
+
 // DirectUploadParams defines parameters for DirectUpload.
 type DirectUploadParams struct {
 	FolderId    string  `form:"folder_id" json:"folder_id"`
@@ -714,6 +751,9 @@ type MoveFolderJSONRequestBody MoveFolderJSONBody
 
 // CreateGrantJSONRequestBody defines body for CreateGrant for application/json ContentType.
 type CreateGrantJSONRequestBody CreateGrantJSONBody
+
+// CreateTenantKeyJSONRequestBody defines body for CreateTenantKey for application/json ContentType.
+type CreateTenantKeyJSONRequestBody CreateTenantKeyJSONBody
 
 // MultipartInitJSONRequestBody defines body for MultipartInit for application/json ContentType.
 type MultipartInitJSONRequestBody MultipartInitJSONBody
@@ -1275,6 +1315,20 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /keys (the `ListAllKeys` operationId).
 	ListAllKeys(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateTenantKeyWithBody Create a tenant-scoped API key (not tied to an application)
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /keys (the `CreateTenantKey` operationId).
+	CreateTenantKeyWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateTenantKey Create a tenant-scoped API key (not tied to an application)
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /keys (the `CreateTenantKey` operationId).
+	CreateTenantKey(ctx context.Context, body CreateTenantKeyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RevokeKeyAny Revoke any access key in the tenant
 	//
@@ -2739,6 +2793,40 @@ func (c *Client) GetJob(ctx context.Context, jobId JobId, reqEditors ...RequestE
 // Corresponds with GET /keys (the `ListAllKeys` operationId).
 func (c *Client) ListAllKeys(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListAllKeysRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateTenantKeyWithBody Create a tenant-scoped API key (not tied to an application)
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /keys (the `CreateTenantKey` operationId).
+func (c *Client) CreateTenantKeyWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateTenantKeyRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateTenantKey Create a tenant-scoped API key (not tied to an application)
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /keys (the `CreateTenantKey` operationId).
+func (c *Client) CreateTenantKey(ctx context.Context, body CreateTenantKeyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateTenantKeyRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -5397,6 +5485,46 @@ func NewListAllKeysRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
+// NewCreateTenantKeyRequest calls the generic CreateTenantKey builder with application/json body
+func NewCreateTenantKeyRequest(server string, body CreateTenantKeyJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateTenantKeyRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateTenantKeyRequestWithBody constructs an http.Request for the CreateTenantKey method, with any body, and a specified content type
+func NewCreateTenantKeyRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/keys")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewRevokeKeyAnyRequest constructs an http.Request for the RevokeKeyAny method
 func NewRevokeKeyAnyRequest(server string, keyId KeyId) (*http.Request, error) {
 	var err error
@@ -7362,6 +7490,20 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /keys (the `ListAllKeys` operationId).
 	ListAllKeysWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListAllKeysResponse, error)
+
+	// CreateTenantKeyWithBodyWithResponse Create a tenant-scoped API key (not tied to an application)
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /keys (the `CreateTenantKey` operationId).
+	CreateTenantKeyWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateTenantKeyResponse, error)
+
+	// CreateTenantKeyWithResponse Create a tenant-scoped API key (not tied to an application)
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /keys (the `CreateTenantKey` operationId).
+	CreateTenantKeyWithResponse(ctx context.Context, body CreateTenantKeyJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateTenantKeyResponse, error)
 
 	// RevokeKeyAnyWithResponse Revoke any access key in the tenant
 	//
@@ -9765,6 +9907,47 @@ func (r ListAllKeysResponse) ContentType() string {
 	return ""
 }
 
+type CreateTenantKeyResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *Envelope
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreateTenantKeyResponse) GetJSON201() *Envelope {
+	return r.JSON201
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateTenantKeyResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateTenantKeyResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateTenantKeyResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateTenantKeyResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type RevokeKeyAnyResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -12131,6 +12314,32 @@ func (c *ClientWithResponses) ListAllKeysWithResponse(ctx context.Context, reqEd
 	return ParseListAllKeysResponse(rsp)
 }
 
+// CreateTenantKeyWithBodyWithResponse Create a tenant-scoped API key (not tied to an application)
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /keys (the `CreateTenantKey` operationId).
+func (c *ClientWithResponses) CreateTenantKeyWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateTenantKeyResponse, error) {
+	rsp, err := c.CreateTenantKeyWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateTenantKeyResponse(rsp)
+}
+
+// CreateTenantKeyWithResponse Create a tenant-scoped API key (not tied to an application)
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /keys (the `CreateTenantKey` operationId).
+func (c *ClientWithResponses) CreateTenantKeyWithResponse(ctx context.Context, body CreateTenantKeyJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateTenantKeyResponse, error) {
+	rsp, err := c.CreateTenantKey(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateTenantKeyResponse(rsp)
+}
+
 // RevokeKeyAnyWithResponse Revoke any access key in the tenant
 //
 // Returns a wrapper object for the known response body format(s).
@@ -14122,6 +14331,32 @@ func ParseListAllKeysResponse(rsp *http.Response) (*ListAllKeysResponse, error) 
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateTenantKeyResponse parses an HTTP response from a CreateTenantKeyWithResponse call
+func ParseCreateTenantKeyResponse(rsp *http.Response) (*CreateTenantKeyResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateTenantKeyResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest Envelope
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
 
 	}
 

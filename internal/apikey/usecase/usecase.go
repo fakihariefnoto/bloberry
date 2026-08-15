@@ -64,6 +64,27 @@ func (u *usecase) CreateKey(ctx context.Context, tenantID, applicationID string,
 	return &apikey.CreatedKey{KeyID: k.ID, Secret: secret, Prefix: k.Prefix, LastFour: k.LastFour, ExpiresAt: expiresAt}, nil
 }
 
+// CreateTenantKey creates a key directly on the tenant (not tied to an
+// application). It authenticates as a tenant-scoped principal and can only act
+// within the tenant's folder scope + permissions.
+func (u *usecase) CreateTenantKey(ctx context.Context, tenantID string, scope, perms []string, expiresAt *time.Time) (*apikey.CreatedKey, error) {
+	secret := "blob_live_" + crypto.NewToken(24)
+	hash, err := crypto.HashPassword(secret)
+	if err != nil {
+		return nil, err
+	}
+	k := &domain.AccessKey{
+		TenantID: tenantID, Prefix: "blob_live_", SecretHash: hash,
+		LastFour: lastFour(secret),
+		ScopeFolderIDs: scope, Permissions: perms,
+		ExpiresAt: expiresAt,
+	}
+	if err := u.repo.InsertKey(ctx, k); err != nil {
+		return nil, err
+	}
+	return &apikey.CreatedKey{KeyID: k.ID, Secret: secret, Prefix: k.Prefix, LastFour: k.LastFour, ExpiresAt: expiresAt}, nil
+}
+
 func (u *usecase) ListKeys(ctx context.Context, tenantID, applicationID string) ([]domain.AccessKey, error) {
 	return u.repo.ListKeys(ctx, tenantID, applicationID)
 }

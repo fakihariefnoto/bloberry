@@ -6,6 +6,7 @@ interface User {
   email: string
   display_name: string
   platform_role?: string
+  email_verified?: boolean
   settings?: { default_tenant_id?: string; locale?: string; notifications_enabled?: boolean }
 }
 

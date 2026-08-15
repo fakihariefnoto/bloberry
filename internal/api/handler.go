@@ -735,6 +735,7 @@ type presignReq struct {
 	FolderID    string `json:"folder_id"`
 	Name        string `json:"name"`
 	BackendID   string `json:"storage_id"`
+	Overwrite   bool   `json:"overwrite"`
 	Size        int64  `json:"size"`
 	ContentType string `json:"content_type"`
 }
@@ -750,7 +751,7 @@ func (h *Handler) PresignPut(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, "bad_request")
 		return
 	}
-	res, err := h.Objects.PresignPut(r.Context(), p.TenantID, req.FolderID, req.Name, req.BackendID, req.Size, req.ContentType, p.ID)
+	res, err := h.Objects.PresignPut(r.Context(), p.TenantID, req.FolderID, req.Name, req.BackendID, req.Overwrite, req.Size, req.ContentType, p.ID)
 	if err != nil {
 		httpx.WriteError(w, err)
 		return
@@ -805,7 +806,7 @@ func (h *Handler) MultipartInit(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, "bad_request")
 		return
 	}
-	res, err := h.Objects.MultipartInit(r.Context(), p.TenantID, req.FolderID, req.Name, req.BackendID, req.Size, req.ContentType, p.ID)
+	res, err := h.Objects.MultipartInit(r.Context(), p.TenantID, req.FolderID, req.Name, req.BackendID, req.Overwrite, req.Size, req.ContentType, p.ID)
 	if err != nil {
 		httpx.WriteError(w, err)
 		return

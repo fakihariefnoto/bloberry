@@ -146,7 +146,11 @@ async function onDrop(e: DragEvent) {
   if (e.dataTransfer?.files.length) await uploadFiles(Array.from(e.dataTransfer.files))
 }
 
-async function uploadFiles(files: File[]) {
+// name-conflict resolution
+const showConflict = ref(false)
+const conflictFile = ref<File | null>(null)
+
+async function uploadFiles(files: File[], overwrite = false) {
   uploading.value = true
   for (const f of files) {
     const item: { name: string; progress: number; state: string; error?: string } = { name: f.name, progress: 0, state: 'pending' }
@@ -156,6 +160,7 @@ async function uploadFiles(files: File[]) {
         folder_id: folderId.value || 'root',
         name: f.name,
         storage_id: selectedBackend.value || undefined,
+        overwrite,
         size: f.size,
         content_type: f.type,
       })
@@ -175,12 +180,32 @@ async function uploadFiles(files: File[]) {
       item.state = 'done'
       item.progress = 100
     } catch (e) {
+      const err = e as Error & { code?: string }
+      if (err.code === 'name_conflict') {
+        item.state = 'failed'
+        item.error = 'A file with this name already exists.'
+        conflictFile.value = f
+        showConflict.value = true
+        break // pause the queue until the user decides
+      }
       item.state = 'failed'
-      item.error = (e as Error).message
+      item.error = err.message
     }
   }
   uploading.value = false
   load()
+}
+
+function skipConflict() {
+  showConflict.value = false
+  conflictFile.value = null
+}
+
+async function overwriteConflict() {
+  const f = conflictFile.value
+  showConflict.value = false
+  conflictFile.value = null
+  if (f) await uploadFiles([f], true)
 }
 </script>
 
@@ -286,6 +311,18 @@ async function uploadFiles(files: File[]) {
         </tbody>
       </table>
     </div>
+
+    <!-- Name conflict modal -->
+    <AppModal :open="showConflict" title="A file with this name already exists" description="Do you want to replace the existing file with this upload?">
+      <p class="text-sm text-[var(--color-text-muted)]">
+        <span class="font-mono text-[var(--color-text)]">{{ conflictFile?.name }}</span> already exists in this folder.
+        Replacing it removes the current file. Skipping keeps both uploads in the queue untouched.
+      </p>
+      <template #footer>
+        <AppButton variant="ghost" @click="skipConflict">Skip</AppButton>
+        <AppButton variant="destructive" @click="overwriteConflict">Replace file</AppButton>
+      </template>
+    </AppModal>
 
     <!-- New folder modal -->
     <AppModal :open="showCreateFolder" title="New folder" description="Create a folder in the current directory." @close="closeCreateFolder">

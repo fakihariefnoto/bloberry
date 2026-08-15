@@ -57,10 +57,10 @@ type PresignResult struct {
 }
 
 type Usecase interface {
-	PresignPut(ctx context.Context, tenantID, folderID, name, backendID string, size int64, contentType string, principalID string) (*PresignResult, error)
+	PresignPut(ctx context.Context, tenantID, folderID, name, backendID string, overwrite bool, size int64, contentType string, principalID string) (*PresignResult, error)
 	Complete(ctx context.Context, tenantID, fileID, etag string) (*domain.Object, error)
 	DirectUpload(ctx context.Context, tenantID, folderID, name, backendID, contentType string, r io.Reader, size int64, principalID string) (*domain.Object, error)
-	MultipartInit(ctx context.Context, tenantID, folderID, name, backendID string, size int64, contentType string, principalID string) (*PresignResult, error)
+	MultipartInit(ctx context.Context, tenantID, folderID, name, backendID string, overwrite bool, size int64, contentType string, principalID string) (*PresignResult, error)
 	MultipartPresignPart(ctx context.Context, tenantID, fileID string, part int) (*PresignResult, error)
 	MultipartComplete(ctx context.Context, tenantID, fileID string, parts []storage.Part) (*domain.Object, error)
 	MultipartStatus(ctx context.Context, tenantID, fileID string) (*domain.MultipartUpload, error)

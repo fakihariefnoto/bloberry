@@ -27,11 +27,32 @@ type Driver struct {
 }
 
 func New(root string, secret []byte) (*Driver, error) {
-	// Do not fail at construction if the root can't be created right now
-	// (e.g. /var/lib on an unprivileged dev box) — the driver stays usable and
-	// the directory is created lazily on first write. Registration in the
-	// registry must not depend on a writable root.
-	return &Driver{root: root, secret: secret}, nil
+	// Probe the root up front; if it can't be created/written (e.g. /var/lib on
+	// an unprivileged dev box), fall back to a user-writable path so uploads
+	// never silently fail. The configured root is kept for prod where the
+	// operator guarantees permissions.
+	dir := root
+	if err := os.MkdirAll(dir, 0o750); err != nil || !isWritable(dir) {
+		home, herr := os.UserHomeDir()
+		if herr == nil {
+			alt := filepath.Join(home, ".bloberry", "objects")
+			if os.MkdirAll(alt, 0o750) == nil && isWritable(alt) {
+				dir = alt
+			}
+		}
+	}
+	return &Driver{root: dir, secret: secret}, nil
+}
+
+func isWritable(dir string) bool {
+	f, err := os.CreateTemp(dir, ".wprobe-*")
+	if err != nil {
+		return false
+	}
+	name := f.Name()
+	f.Close()
+	os.Remove(name)
+	return true
 }
 
 func (d *Driver) Capabilities() storage.Capabilities {

@@ -526,9 +526,12 @@ type PresignPutJSONBody struct {
 	ContentType *string `json:"content_type,omitempty"`
 	FolderId    string  `json:"folder_id"`
 	Name        string  `json:"name"`
-	Size        int64   `json:"size"`
 
-	// StorageId Storage backend to upload to. Defaults to the tenant's backend.
+	// Overwrite Replace an existing object with the same name. Defaults to false (409 name_conflict).
+	Overwrite *bool `json:"overwrite,omitempty"`
+	Size      int64 `json:"size"`
+
+	// StorageId Storage engine to upload to. Defaults to the tenant's engine.
 	StorageId *string `json:"storage_id,omitempty"`
 }
 

@@ -444,7 +444,8 @@ func diskRawPut(repo rawObjectRepo, reg *registry.Registry, secret []byte, maxSi
 		httpx.MaxBytesReader(w, r, maxSize)
 		if err := d.Put(r.Context(), key, r.Body, r.ContentLength, r.Header.Get("Content-Type")); err != nil {
 			log.Printf("raw-put failed: key=%s err=%v", key, err)
-			httpx.Error(w, http.StatusBadGateway, "backend_unreachable")
+			httpx.ErrorWithContent(w, http.StatusBadGateway, "backend_unreachable",
+				"failed to write bytes to storage: "+err.Error())
 			return
 		}
 		w.WriteHeader(http.StatusOK)

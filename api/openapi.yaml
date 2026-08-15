@@ -714,7 +714,10 @@ paths:
                   type: string
                 storage_id:
                   type: string
-                  description: Storage backend to upload to. Defaults to the tenant's backend.
+                  description: Storage engine to upload to. Defaults to the tenant's engine.
+                overwrite:
+                  type: boolean
+                  description: Replace an existing object with the same name. Defaults to false (409 name_conflict).
                 size:
                   type: integer
                   format: int64

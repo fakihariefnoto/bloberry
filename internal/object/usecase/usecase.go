@@ -84,7 +84,7 @@ func (u *usecase) backendFor(ctx context.Context, tenantID, backendID string) (*
 	return be, drv, nil
 }
 
-func (u *usecase) PresignPut(ctx context.Context, tenantID, folderID, name, backendID string, size int64, contentType string, principalID string) (*object.PresignResult, error) {
+func (u *usecase) PresignPut(ctx context.Context, tenantID, folderID, name, backendID string, overwrite bool, size int64, contentType string, principalID string) (*object.PresignResult, error) {
 	if size > u.maxSize {
 		return nil, httpx.NewError(httpx.ErrPayloadTooLarge, 413)
 	}
@@ -100,6 +100,19 @@ func (u *usecase) PresignPut(ctx context.Context, tenantID, folderID, name, back
 		return nil, err
 	}
 	key := storageKey(folder.Path, name)
+	// name conflict: replace (overwrite) or 409
+	if existing, err := u.repo.GetByName(ctx, tenantID, folder.ID, name); err == nil {
+		if !overwrite {
+			return nil, httpx.NewError(httpx.ErrNameConflict, 409)
+		}
+		// delete the old blob + record, then upload fresh under the same name
+		oldDrv, derr := u.registry.Get(existing.BackendID)
+		if derr == nil {
+			_ = oldDrv.Delete(ctx, []string{existing.StorageKey})
+		}
+		_ = u.quota.DecrementUsed(ctx, tenantID, existing.SizeBytes, 1)
+		_ = u.repo.Delete(ctx, tenantID, existing.ID)
+	}
 	// pending record first (two-phase write, ADR-5)
 	obj := &domain.Object{
 		ID: crypto.NewID(), TenantID: tenantID, FolderID: folder.ID,
@@ -150,7 +163,7 @@ func (u *usecase) Complete(ctx context.Context, tenantID, fileID, etag string) (
 
 func (u *usecase) DirectUpload(ctx context.Context, tenantID, folderID, name, backendID, contentType string, r io.Reader, size int64, principalID string) (*domain.Object, error) {
 	// proxy path: bytes through Bloberry
-	res, err := u.PresignPut(ctx, tenantID, folderID, name, backendID, size, contentType, principalID)
+	res, err := u.PresignPut(ctx, tenantID, folderID, name, backendID, false, size, contentType, principalID)
 	if err != nil {
 		return nil, err
 	}
@@ -179,7 +192,7 @@ func (u *usecase) DirectUpload(ctx context.Context, tenantID, folderID, name, ba
 	return obj, nil
 }
 
-func (u *usecase) MultipartInit(ctx context.Context, tenantID, folderID, name, backendID string, size int64, contentType string, principalID string) (*object.PresignResult, error) {
+func (u *usecase) MultipartInit(ctx context.Context, tenantID, folderID, name, backendID string, overwrite bool, size int64, contentType string, principalID string) (*object.PresignResult, error) {
 	if size > u.maxSize {
 		return nil, httpx.NewError(httpx.ErrPayloadTooLarge, 413)
 	}
@@ -198,6 +211,18 @@ func (u *usecase) MultipartInit(ctx context.Context, tenantID, folderID, name, b
 		return nil, httpx.NewErrorContent(httpx.ErrBadRequest, 400, "driver has no multipart; use presigned-PUT")
 	}
 	key := storageKey(folder.Path, name)
+	// name conflict: replace (overwrite) or 409
+	if existing, err := u.repo.GetByName(ctx, tenantID, folder.ID, name); err == nil {
+		if !overwrite {
+			return nil, httpx.NewError(httpx.ErrNameConflict, 409)
+		}
+		oldDrv, derr := u.registry.Get(existing.BackendID)
+		if derr == nil {
+			_ = oldDrv.Delete(ctx, []string{existing.StorageKey})
+		}
+		_ = u.quota.DecrementUsed(ctx, tenantID, existing.SizeBytes, 1)
+		_ = u.repo.Delete(ctx, tenantID, existing.ID)
+	}
 	uploadID, err := drv.MultipartInit(ctx, key, contentType)
 	if err != nil {
 		return nil, httpx.NewError(httpx.ErrBackendUnreachable, 502)

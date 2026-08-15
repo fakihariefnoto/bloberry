@@ -54,6 +54,7 @@ import (
 	useruc "github.com/fakihariefnoto/bloberry/internal/user/usecase"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/joho/godotenv"
 	"github.com/go-chi/chi/v5/middleware"
 	"strings"
 	"github.com/redis/go-redis/v9"
@@ -235,6 +236,12 @@ func authGate(mw *httpx.Middleware, next http.Handler) http.Handler {
 // --- wiring helpers ---
 
 func configLoad() (configT, error) {
+	// Load .env if present (never overrides real env vars — godotenv skips set ones).
+	if err := godotenv.Load(); err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return configT{}, fmt.Errorf("load .env: %w", err)
+		}
+	}
 	var c configT
 	c.ServerAddr = envOr("SERVER_ADDR", "127.0.0.1:8080")
 	c.MongoURI = envOr("MONGODB_URI", "mongodb://127.0.0.1:27017")

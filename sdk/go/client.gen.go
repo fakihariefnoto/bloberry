@@ -630,6 +630,12 @@ type UpdateMemberJSONBody struct {
 	Role Role `json:"role"`
 }
 
+// CreateTransferJSONBody defines parameters for CreateTransfer.
+type CreateTransferJSONBody struct {
+	SourceStorageId string `json:"source_storage_id"`
+	TargetStorageId string `json:"target_storage_id"`
+}
+
 // UpdateMeJSONBody defines parameters for UpdateMe.
 type UpdateMeJSONBody struct {
 	DisplayName          *string `json:"display_name,omitempty"`
@@ -753,6 +759,9 @@ type AddMemberJSONRequestBody AddMemberJSONBody
 
 // UpdateMemberJSONRequestBody defines body for UpdateMember for application/json ContentType.
 type UpdateMemberJSONRequestBody UpdateMemberJSONBody
+
+// CreateTransferJSONRequestBody defines body for CreateTransfer for application/json ContentType.
+type CreateTransferJSONRequestBody CreateTransferJSONBody
 
 // UpdateMeJSONRequestBody defines body for UpdateMe for application/json ContentType.
 type UpdateMeJSONRequestBody UpdateMeJSONBody
@@ -1262,6 +1271,16 @@ type ClientInterface interface {
 	// Corresponds with GET /jobs/{jobId} (the `GetJob` operationId).
 	GetJob(ctx context.Context, jobId JobId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListAllKeys List every access key in the tenant across all applications
+	//
+	// Corresponds with GET /keys (the `ListAllKeys` operationId).
+	ListAllKeys(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RevokeKeyAny Revoke any access key in the tenant
+	//
+	// Corresponds with DELETE /keys/{keyId} (the `RevokeKeyAny` operationId).
+	RevokeKeyAny(ctx context.Context, keyId KeyId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// DirectUploadWithBody Upload object bytes through Bloberry (proxy path)
 	//
 	// Takes any type of body and a specified content type.
@@ -1548,6 +1567,20 @@ type ClientInterface interface {
 	//
 	// Corresponds with PATCH /tenants/{tenantId}/members/{membershipId} (the `UpdateMember` operationId).
 	UpdateMember(ctx context.Context, tenantId TenantId, membershipId string, body UpdateMemberJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateTransferWithBody Copy active objects from one storage engine to another (queued job)
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /transfers (the `CreateTransfer` operationId).
+	CreateTransferWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateTransfer Copy active objects from one storage engine to another (queued job)
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /transfers (the `CreateTransfer` operationId).
+	CreateTransfer(ctx context.Context, body CreateTransferJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// EstimatedCost Estimated monthly cost from the rate card (M18)
 	//
@@ -2701,6 +2734,36 @@ func (c *Client) GetJob(ctx context.Context, jobId JobId, reqEditors ...RequestE
 	return c.Client.Do(req)
 }
 
+// ListAllKeys List every access key in the tenant across all applications
+//
+// Corresponds with GET /keys (the `ListAllKeys` operationId).
+func (c *Client) ListAllKeys(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListAllKeysRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RevokeKeyAny Revoke any access key in the tenant
+//
+// Corresponds with DELETE /keys/{keyId} (the `RevokeKeyAny` operationId).
+func (c *Client) RevokeKeyAny(ctx context.Context, keyId KeyId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRevokeKeyAnyRequest(c.Server, keyId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // DirectUploadWithBody Upload object bytes through Bloberry (proxy path)
 //
 // Takes any type of body and a specified content type.
@@ -3428,6 +3491,40 @@ func (c *Client) UpdateMemberWithBody(ctx context.Context, tenantId TenantId, me
 // Corresponds with PATCH /tenants/{tenantId}/members/{membershipId} (the `UpdateMember` operationId).
 func (c *Client) UpdateMember(ctx context.Context, tenantId TenantId, membershipId string, body UpdateMemberJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewUpdateMemberRequest(c.Server, tenantId, membershipId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateTransferWithBody Copy active objects from one storage engine to another (queued job)
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /transfers (the `CreateTransfer` operationId).
+func (c *Client) CreateTransferWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateTransferRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateTransfer Copy active objects from one storage engine to another (queued job)
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /transfers (the `CreateTransfer` operationId).
+func (c *Client) CreateTransfer(ctx context.Context, body CreateTransferJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateTransferRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -5273,6 +5370,67 @@ func NewGetJobRequest(server string, jobId JobId) (*http.Request, error) {
 	return req, nil
 }
 
+// NewListAllKeysRequest constructs an http.Request for the ListAllKeys method
+func NewListAllKeysRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/keys")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewRevokeKeyAnyRequest constructs an http.Request for the RevokeKeyAny method
+func NewRevokeKeyAnyRequest(server string, keyId KeyId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "keyId", keyId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/keys/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewDirectUploadRequestWithBody constructs an http.Request for the DirectUpload method, with any body, and a specified content type
 func NewDirectUploadRequestWithBody(server string, params *DirectUploadParams, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
@@ -6477,6 +6635,46 @@ func NewUpdateMemberRequestWithBody(server string, tenantId TenantId, membership
 	return req, nil
 }
 
+// NewCreateTransferRequest calls the generic CreateTransfer builder with application/json body
+func NewCreateTransferRequest(server string, body CreateTransferJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateTransferRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateTransferRequestWithBody constructs an http.Request for the CreateTransfer method, with any body, and a specified content type
+func NewCreateTransferRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/transfers")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewEstimatedCostRequest constructs an http.Request for the EstimatedCost method
 func NewEstimatedCostRequest(server string) (*http.Request, error) {
 	var err error
@@ -7158,6 +7356,20 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /jobs/{jobId} (the `GetJob` operationId).
 	GetJobWithResponse(ctx context.Context, jobId JobId, reqEditors ...RequestEditorFn) (*GetJobResponse, error)
 
+	// ListAllKeysWithResponse List every access key in the tenant across all applications
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /keys (the `ListAllKeys` operationId).
+	ListAllKeysWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListAllKeysResponse, error)
+
+	// RevokeKeyAnyWithResponse Revoke any access key in the tenant
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /keys/{keyId} (the `RevokeKeyAny` operationId).
+	RevokeKeyAnyWithResponse(ctx context.Context, keyId KeyId, reqEditors ...RequestEditorFn) (*RevokeKeyAnyResponse, error)
+
 	// DirectUploadWithBodyWithResponse Upload object bytes through Bloberry (proxy path)
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -7472,6 +7684,20 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with PATCH /tenants/{tenantId}/members/{membershipId} (the `UpdateMember` operationId).
 	UpdateMemberWithResponse(ctx context.Context, tenantId TenantId, membershipId string, body UpdateMemberJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateMemberResponse, error)
+
+	// CreateTransferWithBodyWithResponse Copy active objects from one storage engine to another (queued job)
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /transfers (the `CreateTransfer` operationId).
+	CreateTransferWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateTransferResponse, error)
+
+	// CreateTransferWithResponse Copy active objects from one storage engine to another (queued job)
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /transfers (the `CreateTransfer` operationId).
+	CreateTransferWithResponse(ctx context.Context, body CreateTransferJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateTransferResponse, error)
 
 	// EstimatedCostWithResponse Estimated monthly cost from the rate card (M18)
 	//
@@ -9498,6 +9724,81 @@ func (r GetJobResponse) ContentType() string {
 	return ""
 }
 
+type ListAllKeysResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Envelope
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListAllKeysResponse) GetJSON200() *Envelope {
+	return r.JSON200
+}
+
+// GetBody returns the raw response body bytes
+func (r ListAllKeysResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListAllKeysResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListAllKeysResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListAllKeysResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RevokeKeyAnyResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// GetBody returns the raw response body bytes
+func (r RevokeKeyAnyResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RevokeKeyAnyResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RevokeKeyAnyResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RevokeKeyAnyResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type DirectUploadResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -10686,6 +10987,55 @@ func (r UpdateMemberResponse) ContentType() string {
 	return ""
 }
 
+type CreateTransferResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON202 the response for an HTTP 202 `application/json` response
+	JSON202 *struct {
+		Data *struct {
+			JobId *string `json:"job_id,omitempty"`
+		} `json:"data,omitempty"`
+	}
+}
+
+// GetJSON202 returns the response for an HTTP 202 `application/json` response
+func (r CreateTransferResponse) GetJSON202() *struct {
+	Data *struct {
+		JobId *string `json:"job_id,omitempty"`
+	} `json:"data,omitempty"`
+} {
+	return r.JSON202
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateTransferResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateTransferResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateTransferResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateTransferResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type EstimatedCostResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -11768,6 +12118,32 @@ func (c *ClientWithResponses) GetJobWithResponse(ctx context.Context, jobId JobI
 	return ParseGetJobResponse(rsp)
 }
 
+// ListAllKeysWithResponse List every access key in the tenant across all applications
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /keys (the `ListAllKeys` operationId).
+func (c *ClientWithResponses) ListAllKeysWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListAllKeysResponse, error) {
+	rsp, err := c.ListAllKeys(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListAllKeysResponse(rsp)
+}
+
+// RevokeKeyAnyWithResponse Revoke any access key in the tenant
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /keys/{keyId} (the `RevokeKeyAny` operationId).
+func (c *ClientWithResponses) RevokeKeyAnyWithResponse(ctx context.Context, keyId KeyId, reqEditors ...RequestEditorFn) (*RevokeKeyAnyResponse, error) {
+	rsp, err := c.RevokeKeyAny(ctx, keyId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRevokeKeyAnyResponse(rsp)
+}
+
 // DirectUploadWithBodyWithResponse Upload object bytes through Bloberry (proxy path)
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -12351,6 +12727,32 @@ func (c *ClientWithResponses) UpdateMemberWithResponse(ctx context.Context, tena
 		return nil, err
 	}
 	return ParseUpdateMemberResponse(rsp)
+}
+
+// CreateTransferWithBodyWithResponse Copy active objects from one storage engine to another (queued job)
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /transfers (the `CreateTransfer` operationId).
+func (c *ClientWithResponses) CreateTransferWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateTransferResponse, error) {
+	rsp, err := c.CreateTransferWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateTransferResponse(rsp)
+}
+
+// CreateTransferWithResponse Copy active objects from one storage engine to another (queued job)
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /transfers (the `CreateTransfer` operationId).
+func (c *ClientWithResponses) CreateTransferWithResponse(ctx context.Context, body CreateTransferJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateTransferResponse, error) {
+	rsp, err := c.CreateTransfer(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateTransferResponse(rsp)
 }
 
 // EstimatedCostWithResponse Estimated monthly cost from the rate card (M18)
@@ -13700,6 +14102,48 @@ func ParseGetJobResponse(rsp *http.Response) (*GetJobResponse, error) {
 	return response, nil
 }
 
+// ParseListAllKeysResponse parses an HTTP response from a ListAllKeysWithResponse call
+func ParseListAllKeysResponse(rsp *http.Response) (*ListAllKeysResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListAllKeysResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Envelope
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRevokeKeyAnyResponse parses an HTTP response from a RevokeKeyAnyWithResponse call
+func ParseRevokeKeyAnyResponse(rsp *http.Response) (*RevokeKeyAnyResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RevokeKeyAnyResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
 // ParseDirectUploadResponse parses an HTTP response from a DirectUploadWithResponse call
 func ParseDirectUploadResponse(rsp *http.Response) (*DirectUploadResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -14409,6 +14853,36 @@ func ParseUpdateMemberResponse(rsp *http.Response) (*UpdateMemberResponse, error
 	response := &UpdateMemberResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseCreateTransferResponse parses an HTTP response from a CreateTransferWithResponse call
+func ParseCreateTransferResponse(rsp *http.Response) (*CreateTransferResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateTransferResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest struct {
+			Data *struct {
+				JobId *string `json:"job_id,omitempty"`
+			} `json:"data,omitempty"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
+
 	}
 
 	return response, nil

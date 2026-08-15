@@ -1041,6 +1041,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Envelope'
+  /keys:
+    get:
+      operationId: listAllKeys
+      summary: List every access key in the tenant across all applications
+      responses:
+        '200':
+          description: Keys (secrets omitted)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+  /keys/{keyId}:
+    delete:
+      operationId: revokeKeyAny
+      summary: Revoke any access key in the tenant
+      parameters:
+        - $ref: '#/components/parameters/KeyId'
+      responses:
+        '204':
+          description: Revoked
   /applications:
     get:
       operationId: listApplications
@@ -1241,6 +1261,35 @@ paths:
       responses:
         '202':
           description: Bundle queued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      job_id:
+                        type: string
+  /transfers:
+    post:
+      operationId: createTransfer
+      summary: Copy active objects from one storage engine to another (queued job)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [source_storage_id, target_storage_id]
+              properties:
+                source_storage_id:
+                  type: string
+                target_storage_id:
+                  type: string
+      responses:
+        '202':
+          description: Transfer queued
           content:
             application/json:
               schema:

@@ -18,6 +18,9 @@ type Repository interface {
 	Delete(ctx context.Context, tenantID, id string) error
 	SoftDelete(ctx context.Context, tenantID, id string) error
 	ListByFolder(ctx context.Context, tenantID, folderID string) ([]domain.Object, error)
+	// ListActiveByBackend returns active objects on a storage engine (for
+	// cross-engine transfers). Empty backendID = all engines.
+	ListActiveByBackend(ctx context.Context, tenantID, backendID string) ([]domain.Object, error)
 	CountActive(ctx context.Context, tenantID string) (int64, error)
 	SumActiveBytes(ctx context.Context, tenantID string) (int64, error)
 	GetBackend(ctx context.Context, id string) (*domain.StorageBackend, error)

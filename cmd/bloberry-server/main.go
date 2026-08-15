@@ -30,6 +30,7 @@ import (
 	folderuc "github.com/fakihariefnoto/bloberry/internal/folder/usecase"
 	grantrepo "github.com/fakihariefnoto/bloberry/internal/grant/repository"
 	grantuc "github.com/fakihariefnoto/bloberry/internal/grant/usecase"
+	"github.com/fakihariefnoto/bloberry/internal/job"
 	jobrepo "github.com/fakihariefnoto/bloberry/internal/job/repository"
 	jobuc "github.com/fakihariefnoto/bloberry/internal/job/usecase"
 	objectrepo "github.com/fakihariefnoto/bloberry/internal/object/repository"
@@ -141,7 +142,8 @@ func main() {
 	auditUC := audituc.NewUsecase(auditRepo)
 
 	jobQueue := &redisJobQueue{rdb: rdb}
-	jobUC := jobuc.NewUsecase(jobuc.Deps{Repo: jobrepo.New(mdb.DB), Queue: jobQueue, Run: &noopRunner{}})
+	jobRunner := job.NewTransferRunner(job.TransferDeps{Objects: objectRepo, Registry: reg})
+	jobUC := jobuc.NewUsecase(jobuc.Deps{Repo: jobrepo.New(mdb.DB), Queue: jobQueue, Run: jobRunner})
 
 	usageUC := usageuc.NewUsecase(usageuc.Deps{Repo: usagerepo.New(mdb.DB), Objects: objectRepo})
 
@@ -363,13 +365,6 @@ func (q *redisJobQueue) Enqueue(ctx context.Context, jobID string) error {
 }
 func (q *redisJobQueue) Dequeue(ctx context.Context) (string, error) {
 	return q.rdb.RPop(ctx, "job:queue").Result()
-}
-
-type noopRunner struct{}
-
-func (n *noopRunner) Run(ctx context.Context, j *domain.Job) error {
-	// v1: extraction/bundle workers are stubbed at the job-record level.
-	return nil
 }
 
 type googleVerifier struct{ clientID string }

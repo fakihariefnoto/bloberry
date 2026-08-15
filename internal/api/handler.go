@@ -1037,6 +1037,33 @@ func (h *Handler) ResolveShortLink(w http.ResponseWriter, r *http.Request, slug 
 
 // --- applications & keys ---
 
+func (h *Handler) ListAllKeys(w http.ResponseWriter, r *http.Request) {
+	p := principalOf(r)
+	if p == nil {
+		httpx.Error(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	keys, err := h.APIKeys.ListAllKeys(r.Context(), p.TenantID)
+	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	data(w, http.StatusOK, keys)
+}
+
+func (h *Handler) RevokeKeyAny(w http.ResponseWriter, r *http.Request, keyId server.KeyId) {
+	p := principalOf(r)
+	if p == nil {
+		httpx.Error(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	if err := h.APIKeys.RevokeKeyAny(r.Context(), p.TenantID, string(keyId)); err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (h *Handler) ListApplications(w http.ResponseWriter, r *http.Request) {
 	p := principalOf(r)
 	apps, err := h.APIKeys.List(r.Context(), p.TenantID)
@@ -1200,6 +1227,35 @@ func (h *Handler) CreateBundle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	jobID, err := h.Jobs.Enqueue(r.Context(), p.TenantID, "bundle", map[string]interface{}{"folder_id": req.FolderID})
+	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	data(w, http.StatusAccepted, map[string]interface{}{"job_id": jobID})
+}
+
+func (h *Handler) CreateTransfer(w http.ResponseWriter, r *http.Request) {
+	p := principalOf(r)
+	if p == nil {
+		httpx.Error(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	var req struct {
+		SourceStorageID string `json:"source_storage_id"`
+		TargetStorageID string `json:"target_storage_id"`
+	}
+	if err := decodeBody(r, &req); err != nil {
+		httpx.Error(w, http.StatusBadRequest, "bad_request")
+		return
+	}
+	if req.SourceStorageID == "" || req.TargetStorageID == "" || req.SourceStorageID == req.TargetStorageID {
+		httpx.Error(w, http.StatusBadRequest, "bad_request")
+		return
+	}
+	jobID, err := h.Jobs.Enqueue(r.Context(), p.TenantID, "transfer", map[string]interface{}{
+		"source_storage_id": req.SourceStorageID,
+		"target_storage_id": req.TargetStorageID,
+	})
 	if err != nil {
 		httpx.WriteError(w, err)
 		return

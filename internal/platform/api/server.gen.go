@@ -626,6 +626,12 @@ type UpdateMemberJSONBody struct {
 	Role Role `json:"role"`
 }
 
+// CreateTransferJSONBody defines parameters for CreateTransfer.
+type CreateTransferJSONBody struct {
+	SourceStorageId string `json:"source_storage_id"`
+	TargetStorageId string `json:"target_storage_id"`
+}
+
 // UpdateMeJSONBody defines parameters for UpdateMe.
 type UpdateMeJSONBody struct {
 	DisplayName          *string `json:"display_name,omitempty"`
@@ -749,6 +755,9 @@ type AddMemberJSONRequestBody AddMemberJSONBody
 
 // UpdateMemberJSONRequestBody defines body for UpdateMember for application/json ContentType.
 type UpdateMemberJSONRequestBody UpdateMemberJSONBody
+
+// CreateTransferJSONRequestBody defines body for CreateTransfer for application/json ContentType.
+type CreateTransferJSONRequestBody CreateTransferJSONBody
 
 // UpdateMeJSONRequestBody defines body for UpdateMe for application/json ContentType.
 type UpdateMeJSONRequestBody UpdateMeJSONBody
@@ -896,6 +905,12 @@ type ServerInterface interface {
 	// GetJob Poll job status
 	// (GET /jobs/{jobId})
 	GetJob(w http.ResponseWriter, r *http.Request, jobId JobId)
+	// ListAllKeys List every access key in the tenant across all applications
+	// (GET /keys)
+	ListAllKeys(w http.ResponseWriter, r *http.Request)
+	// RevokeKeyAny Revoke any access key in the tenant
+	// (DELETE /keys/{keyId})
+	RevokeKeyAny(w http.ResponseWriter, r *http.Request, keyId KeyId)
 	// DirectUpload Upload object bytes through Bloberry (proxy path)
 	// (POST /objects/direct)
 	DirectUpload(w http.ResponseWriter, r *http.Request, params DirectUploadParams)
@@ -986,6 +1001,9 @@ type ServerInterface interface {
 	// UpdateMember Change a member's role
 	// (PATCH /tenants/{tenantId}/members/{membershipId})
 	UpdateMember(w http.ResponseWriter, r *http.Request, tenantId TenantId, membershipId string)
+	// CreateTransfer Copy active objects from one storage engine to another (queued job)
+	// (POST /transfers)
+	CreateTransfer(w http.ResponseWriter, r *http.Request)
 	// EstimatedCost Estimated monthly cost from the rate card (M18)
 	// (GET /usage/estimated-cost)
 	EstimatedCost(w http.ResponseWriter, r *http.Request)
@@ -1283,6 +1301,18 @@ func (_ Unimplemented) GetJob(w http.ResponseWriter, r *http.Request, jobId JobI
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// ListAllKeys List every access key in the tenant across all applications
+// (GET /keys)
+func (_ Unimplemented) ListAllKeys(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// RevokeKeyAny Revoke any access key in the tenant
+// (DELETE /keys/{keyId})
+func (_ Unimplemented) RevokeKeyAny(w http.ResponseWriter, r *http.Request, keyId KeyId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // DirectUpload Upload object bytes through Bloberry (proxy path)
 // (POST /objects/direct)
 func (_ Unimplemented) DirectUpload(w http.ResponseWriter, r *http.Request, params DirectUploadParams) {
@@ -1460,6 +1490,12 @@ func (_ Unimplemented) RemoveMember(w http.ResponseWriter, r *http.Request, tena
 // UpdateMember Change a member's role
 // (PATCH /tenants/{tenantId}/members/{membershipId})
 func (_ Unimplemented) UpdateMember(w http.ResponseWriter, r *http.Request, tenantId TenantId, membershipId string) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// CreateTransfer Copy active objects from one storage engine to another (queued job)
+// (POST /transfers)
+func (_ Unimplemented) CreateTransfer(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -2418,6 +2454,46 @@ func (siw *ServerInterfaceWrapper) GetJob(w http.ResponseWriter, r *http.Request
 	handler.ServeHTTP(w, r)
 }
 
+// ListAllKeys operation middleware
+func (siw *ServerInterfaceWrapper) ListAllKeys(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAllKeys(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RevokeKeyAny operation middleware
+func (siw *ServerInterfaceWrapper) RevokeKeyAny(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "keyId" -------------
+	var keyId KeyId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "keyId", chi.URLParam(r, "keyId"), &keyId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "keyId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RevokeKeyAny(w, r, keyId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // DirectUpload operation middleware
 func (siw *ServerInterfaceWrapper) DirectUpload(w http.ResponseWriter, r *http.Request) {
 
@@ -3141,6 +3217,20 @@ func (siw *ServerInterfaceWrapper) UpdateMember(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
+// CreateTransfer operation middleware
+func (siw *ServerInterfaceWrapper) CreateTransfer(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateTransfer(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // EstimatedCost operation middleware
 func (siw *ServerInterfaceWrapper) EstimatedCost(w http.ResponseWriter, r *http.Request) {
 
@@ -3484,6 +3574,12 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Get(options.BaseURL+"/backends", wrapper.ListAvailableBackends)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/keys", wrapper.ListAllKeys)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/keys/{keyId}", wrapper.RevokeKeyAny)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/applications", wrapper.ListApplications)
 	})
 	r.Group(func(r chi.Router) {
@@ -3515,6 +3611,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/archives/bundle", wrapper.CreateBundle)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/transfers", wrapper.CreateTransfer)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/jobs", wrapper.ListJobs)

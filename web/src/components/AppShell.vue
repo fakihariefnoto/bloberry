@@ -3,7 +3,7 @@ import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   Boxes, FolderOpen, Share2, ListChecks, KeyRound, Users, ScrollText,
-  Gauge, Settings, Building2, HardDrive, BarChart3, LogOut, User, Smartphone, ChevronDown,
+  Gauge, Settings, Building2, HardDrive, BarChart3, LogOut, User, Smartphone, ChevronDown, Key, ArrowLeftRight,
 } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
 import { useTenantStore } from '../stores/tenant'
@@ -27,12 +27,14 @@ const mainNav = [
   { name: 'files', label: 'Files', icon: FolderOpen },
   { name: 'shares', label: 'Shares', icon: Share2 },
   { name: 'jobs', label: 'Jobs', icon: ListChecks },
+  { name: 'transfers', label: 'Transfers', icon: ArrowLeftRight },
 ]
 
 const adminNav = computed(() =>
   ['tenant_admin', 'tenant_owner'].includes(role.value)
     ? [
         { name: 'applications', label: 'Applications', icon: KeyRound },
+        { name: 'api-keys', label: 'API keys', icon: Key },
         { name: 'members', label: 'Members', icon: Users },
         { name: 'audit', label: 'Audit log', icon: ScrollText },
         { name: 'usage', label: 'Usage', icon: Gauge },
@@ -75,7 +77,8 @@ function switchTenant(id: string) {
 
 const pageTitle = computed(() => {
   const map: Record<string, string> = {
-    files: 'Files', shares: 'Shares', jobs: 'Jobs', applications: 'Applications',
+    files: 'Files', shares: 'Shares', jobs: 'Jobs', transfers: 'Transfers', applications: 'Applications',
+    'api-keys': 'API keys',
     'application-detail': 'Application', members: 'Members', audit: 'Audit log',
     usage: 'Usage', 'tenant-settings': 'Tenant settings', profile: 'Profile',
     'account-settings': 'Account settings', 'pair-device': 'Pair a device',

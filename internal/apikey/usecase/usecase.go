@@ -68,6 +68,31 @@ func (u *usecase) ListKeys(ctx context.Context, tenantID, applicationID string) 
 	return u.repo.ListKeys(ctx, tenantID, applicationID)
 }
 
+// ListAllKeys enriches each key with its application's name.
+func (u *usecase) ListAllKeys(ctx context.Context, tenantID string) ([]apikey.KeyWithApp, error) {
+	keys, err := u.repo.ListAllKeys(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	apps, err := u.repo.ListApplications(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	nameByID := map[string]string{}
+	for _, a := range apps {
+		nameByID[a.ID] = a.Name
+	}
+	out := make([]apikey.KeyWithApp, 0, len(keys))
+	for _, k := range keys {
+		wk := apikey.KeyWithApp{AccessKey: k}
+		if k.ApplicationID != nil {
+			wk.ApplicationName = nameByID[*k.ApplicationID]
+		}
+		out = append(out, wk)
+	}
+	return out, nil
+}
+
 func (u *usecase) RevokeKey(ctx context.Context, tenantID, keyID string) error {
 	k, err := u.repo.ListKeys(ctx, tenantID, "")
 	if err != nil {
@@ -82,6 +107,23 @@ func (u *usecase) RevokeKey(ctx context.Context, tenantID, keyID string) error {
 		}
 	}
 	return u.repo.RevokeKey(ctx, tenantID, keyID)
+}
+
+// RevokeKeyAny revokes a key by id across all applications (SDK-facing page).
+func (u *usecase) RevokeKeyAny(ctx context.Context, tenantID, keyID string) error {
+	k, err := u.repo.ListAllKeys(ctx, tenantID)
+	if err != nil {
+		return err
+	}
+	for _, key := range k {
+		if key.ID == keyID {
+			if u.invalidator != nil {
+				_ = u.invalidator.InvalidateKey(ctx, key.SecretHash)
+			}
+			return u.repo.RevokeKeyAny(ctx, tenantID, keyID)
+		}
+	}
+	return u.repo.RevokeKeyAny(ctx, tenantID, keyID)
 }
 
 func lastFour(secret string) string {

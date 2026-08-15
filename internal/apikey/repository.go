@@ -17,7 +17,12 @@ type Repository interface {
 	InsertKey(ctx context.Context, k *domain.AccessKey) error
 	GetKeyByHash(ctx context.Context, hash string) (*domain.AccessKey, error)
 	ListKeys(ctx context.Context, tenantID, applicationID string) ([]domain.AccessKey, error)
+	// ListAllKeys returns every key in the tenant (all applications), for the
+	// SDK-facing API keys page.
+	ListAllKeys(ctx context.Context, tenantID string) ([]domain.AccessKey, error)
 	RevokeKey(ctx context.Context, tenantID, id string) error
+	// RevokeKeyAny revokes a key by id regardless of application.
+	RevokeKeyAny(ctx context.Context, tenantID, id string) error
 	TouchKey(ctx context.Context, id string) error
 }
 
@@ -41,5 +46,16 @@ type Usecase interface {
 	Delete(ctx context.Context, tenantID, id string) error
 	CreateKey(ctx context.Context, tenantID, applicationID string, scope []string, perms []string, expiresAt *time.Time) (*CreatedKey, error)
 	ListKeys(ctx context.Context, tenantID, applicationID string) ([]domain.AccessKey, error)
+	// ListAllKeys returns keys across all applications, enriched with the app name.
+	ListAllKeys(ctx context.Context, tenantID string) ([]KeyWithApp, error)
 	RevokeKey(ctx context.Context, tenantID, keyID string) error
+	// RevokeKeyAny revokes a key by id regardless of application.
+	RevokeKeyAny(ctx context.Context, tenantID, keyID string) error
+}
+
+// KeyWithApp is an access key joined with its application name for the
+// cross-app API keys page.
+type KeyWithApp struct {
+	domain.AccessKey
+	ApplicationName string `json:"application_name"`
 }

@@ -87,10 +87,27 @@ func (r *repo) ListKeys(ctx context.Context, tenantID, applicationID string) ([]
 	return out, nil
 }
 
+func (r *repo) ListAllKeys(ctx context.Context, tenantID string) ([]domain.AccessKey, error) {
+	cur, err := r.keys.Find(ctx, bson.M{"tenant_id": tenantID})
+	if err != nil {
+		return nil, err
+	}
+	defer cur.Close(ctx)
+	out := make([]domain.AccessKey, 0)
+	if err := cur.All(ctx, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (r *repo) RevokeKey(ctx context.Context, tenantID, id string) error {
 	now := time.Now().UTC()
 	_, err := r.keys.UpdateOne(ctx, bson.M{"_id": id, "tenant_id": tenantID}, bson.M{"$set": bson.M{"revoked_at": now}})
 	return err
+}
+
+func (r *repo) RevokeKeyAny(ctx context.Context, tenantID, id string) error {
+	return r.RevokeKey(ctx, tenantID, id)
 }
 
 func (r *repo) TouchKey(ctx context.Context, id string) error {

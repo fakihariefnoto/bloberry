@@ -93,8 +93,24 @@ func (r *repo) ListByFolder(ctx context.Context, tenantID, folderID string) ([]d
 	return out, nil
 }
 
-func (r *repo) CountActive(ctx context.Context, tenantID string) (int64, error) {
-	return r.objects.CountDocuments(ctx, bson.M{"tenant_id": tenantID, "state": "active", "deleted_at": bson.M{"$exists": false}})
+func (r *repo) CountActive(ctx context.Context, tenantID string) (int64, error) {	return r.objects.CountDocuments(ctx, bson.M{"tenant_id": tenantID, "state": "active", "deleted_at": bson.M{"$exists": false}})
+}
+
+func (r *repo) ListActiveByBackend(ctx context.Context, tenantID, backendID string) ([]domain.Object, error) {
+	q := bson.M{"tenant_id": tenantID, "state": "active", "deleted_at": bson.M{"$exists": false}}
+	if backendID != "" {
+		q["backend_id"] = backendID
+	}
+	cur, err := r.objects.Find(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	defer cur.Close(ctx)
+	out := make([]domain.Object, 0)
+	if err := cur.All(ctx, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (r *repo) SumActiveBytes(ctx context.Context, tenantID string) (int64, error) {

@@ -32,6 +32,18 @@ type quotaChecker interface {
 
 type folderReader interface {
 	Get(ctx context.Context, tenantID, id string) (*domain.Folder, error)
+	GetRoot(ctx context.Context, tenantID string) (*domain.Folder, error)
+}
+
+// resolveFolderID maps the pseudo-id "root" to the tenant's root folder.
+func resolveFolderID(ctx context.Context, f folderReader, tenantID, folderID string) string {
+	if folderID == "" || folderID == "root" {
+		if root, err := f.GetRoot(ctx, tenantID); err == nil {
+			return root.ID
+		}
+		return folderID
+	}
+	return folderID
 }
 
 type Deps struct {
@@ -70,7 +82,7 @@ func (u *usecase) PresignPut(ctx context.Context, tenantID, folderID, name strin
 	if size > u.maxSize {
 		return nil, httpx.NewError(httpx.ErrPayloadTooLarge, 413)
 	}
-	folder, err := u.folders.Get(ctx, tenantID, folderID)
+	folder, err := u.folders.Get(ctx, tenantID, resolveFolderID(ctx, u.folders, tenantID, folderID))
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +96,7 @@ func (u *usecase) PresignPut(ctx context.Context, tenantID, folderID, name strin
 	key := storageKey(folder.Path, name)
 	// pending record first (two-phase write, ADR-5)
 	obj := &domain.Object{
-		ID: crypto.NewID(), TenantID: tenantID, FolderID: folderID,
+		ID: crypto.NewID(), TenantID: tenantID, FolderID: folder.ID,
 		Ancestors: folder.Ancestors, Name: name, BackendID: be.ID,
 		StorageKey: key, State: "pending", SizeBytes: size, ContentType: contentType,
 		Visibility: "private", UploadedBy: principalID,
@@ -165,7 +177,7 @@ func (u *usecase) MultipartInit(ctx context.Context, tenantID, folderID, name st
 	if size > u.maxSize {
 		return nil, httpx.NewError(httpx.ErrPayloadTooLarge, 413)
 	}
-	folder, err := u.folders.Get(ctx, tenantID, folderID)
+	folder, err := u.folders.Get(ctx, tenantID, resolveFolderID(ctx, u.folders, tenantID, folderID))
 	if err != nil {
 		return nil, err
 	}
@@ -185,7 +197,7 @@ func (u *usecase) MultipartInit(ctx context.Context, tenantID, folderID, name st
 		return nil, httpx.NewError(httpx.ErrBackendUnreachable, 502)
 	}
 	obj := &domain.Object{
-		ID: crypto.NewID(), TenantID: tenantID, FolderID: folderID,
+		ID: crypto.NewID(), TenantID: tenantID, FolderID: folder.ID,
 		Ancestors: folder.Ancestors, Name: name, BackendID: be.ID,
 		StorageKey: key, State: "pending", SizeBytes: size, ContentType: contentType,
 		Visibility: "private", UploadedBy: principalID,
@@ -272,7 +284,7 @@ func (u *usecase) Move(ctx context.Context, tenantID, fileID, targetFolderID str
 	if err != nil {
 		return nil, err
 	}
-	target, err := u.folders.Get(ctx, tenantID, targetFolderID)
+	target, err := u.folders.Get(ctx, tenantID, resolveFolderID(ctx, u.folders, tenantID, targetFolderID))
 	if err != nil {
 		return nil, err
 	}

@@ -629,12 +629,23 @@ func (h *Handler) MoveFolder(w http.ResponseWriter, r *http.Request, folderId se
 
 func (h *Handler) ListFolderChildren(w http.ResponseWriter, r *http.Request, folderId server.FolderId) {
 	p := principalOf(r)
-	folders, err := h.Folders.ListChildren(r.Context(), p.TenantID, strPtr(string(folderId)))
+	var fid string
+	if string(folderId) == "root" {
+		root, err := h.Folders.GetRoot(r.Context(), p.TenantID)
+		if err != nil {
+			httpx.WriteError(w, err)
+			return
+		}
+		fid = root.ID
+	} else {
+		fid = string(folderId)
+	}
+	folders, err := h.Folders.ListChildren(r.Context(), p.TenantID, strPtr(fid))
 	if err != nil {
 		httpx.WriteError(w, err)
 		return
 	}
-	objects, err := h.Objects.ListByFolder(r.Context(), p.TenantID, string(folderId))
+	objects, err := h.Objects.ListByFolder(r.Context(), p.TenantID, fid)
 	if err != nil {
 		httpx.WriteError(w, err)
 		return

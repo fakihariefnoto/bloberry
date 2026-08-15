@@ -1,58 +1,69 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue'
+import {
+  Folder, FileText, Cloud, HardDrive, Database, Box, Server, ShieldCheck, FileCode, Globe, UploadCloud,
+} from 'lucide-vue-next'
 
-// Abstract orb in the background: hundreds of tiny particles distributed on a
-// sphere with per-particle radius jitter (so it reads as an organic nebula,
-// not a hard sphere), gently rotating. Near particles connect with faint
-// lines and a few data packets flow between them. Canvas-only — nothing floats
-// in front of the content. Subtle, low-opacity, honours prefers-reduced-motion.
+// A gentle wave of storage icons drifting in the background: icons are laid
+// out in columns and bob along sine-wave curves, connected to their neighbours
+// by faint lines, with a few data packets flowing along the wave. Everything
+// stays behind the content (content renders above, z-10). Direct DOM writes
+// per frame — no Vue reactivity in the animation loop. Respects reduced motion.
 
+const wrap = ref<HTMLDivElement | null>(null)
 const canvas = ref<HTMLCanvasElement | null>(null)
 let raf = 0
 let reduced = false
 
-const COUNT = 320
+const ICONS = [Folder, FileText, Cloud, HardDrive, Database, Box, Server, ShieldCheck, FileCode, Globe, UploadCloud]
 
-interface P {
-  // base unit-sphere coords
-  sx: number; sy: number; sz: number
-  // radial distortion (abstractness)
-  rj: number // radius jitter 0..1
-  spike: number // some particles get pushed outward
+interface WaveNode {
+  id: number
+  icon: number
+  col: number // column index
+  band: number // which wave band
+  x: number // current px
+  y: number
   phase: number
   size: number
   baseAlpha: number
+  el: HTMLElement | null
 }
-const parts: P[] = Array.from({ length: COUNT }, (_, i) => {
-  const y = 1 - (i / (COUNT - 1)) * 2
-  const r = Math.sqrt(Math.max(0, 1 - y * y))
-  const theta = Math.PI * (3 - Math.sqrt(5)) * i
-  const spike = Math.random() > 0.86 ? 0.25 + Math.random() * 0.35 : 0
-  return {
-    sx: Math.cos(theta) * r,
-    sy: y,
-    sz: Math.sin(theta) * r,
-    rj: (Math.random() - 0.5) * 0.14,
-    spike,
-    phase: Math.random() * Math.PI * 2,
-    size: 1 + Math.random() * 1.6,
-    baseAlpha: 0.25 + Math.random() * 0.4,
+
+// wave geometry
+const COLS = 26
+const BANDS = 3
+const COL_GAP = 92
+
+const mouse = { x: -9999, y: -9999, active: false }
+const follow = { x: -9999, y: -9999 } // smoothed mouse position (wave follows it)
+const bump = { amp: 0 } // eased bump amplitude
+
+const nodes: WaveNode[] = []
+for (let band = 0; band < BANDS; band++) {
+  for (let col = 0; col < COLS; col++) {
+    const id = band * COLS + col
+    nodes.push({
+      id,
+      icon: (id * 3 + band) % ICONS.length,
+      col,
+      band,
+      x: 0, y: 0,
+      phase: col * 0.5 + band * 2.1,
+      size: 15 + ((id % 3) * 3),
+      baseAlpha: 0.35 + 0.2 * Math.sin(band * 2 + col),
+      el: null,
+    })
   }
-})
+}
 
-interface Packet { from: number; to: number; t: number; speed: number }
-const packets: Packet[] = Array.from({ length: 12 }, () => ({
-  from: Math.floor(Math.random() * COUNT),
-  to: Math.floor(Math.random() * COUNT),
+interface Packet { a: number; b: number; t: number; speed: number }
+const packets: Packet[] = Array.from({ length: 18 }, () => ({
+  a: Math.floor(Math.random() * nodes.length),
+  b: Math.floor(Math.random() * nodes.length),
   t: Math.random(),
-  speed: 0.004 + Math.random() * 0.008,
+  speed: 0.005 + Math.random() * 0.008,
 }))
-
-const mouse = { active: false, tx: 0, ty: 0 }
-const tilt = { x: 0, y: 0 }
-const SPRING = 0.05
-let rotY = 0
-const LINK_D2 = 0.012
 
 function tick(now: number) {
   const c = canvas.value
@@ -68,132 +79,163 @@ function tick(now: number) {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
   ctx.clearRect(0, 0, w, h)
 
-  const cx = w * 0.5
-  const cy = h * 0.42
-  const radius = Math.min(w, h) * 0.30
+  // bands float in the mid-upper background
+  const bandY = [h * 0.22, h * 0.4, h * 0.58]
+  const spacing = COL_GAP
+  const cols = Math.floor(w / spacing) + 2
+  const t = reduced ? 0 : now / 2600
 
-  // gentle pulsing + mouse parallax tilt
-  const pulse = reduced ? 1 : 1 + 0.03 * Math.sin(now / 1600)
-  const tx = reduced ? 0 : mouse.active ? mouse.ty * 0.000018 : 0
-  const ty = reduced ? 0 : mouse.active ? -mouse.tx * 0.000018 : 0
-  tilt.x += (tx - tilt.x) * SPRING
-  tilt.y += (ty - tilt.y) * SPRING
-  if (!reduced) rotY += 0.0016
-
-  const sinX = Math.sin(tilt.x)
-  const cosX = Math.cos(tilt.x)
-  const sinY = Math.sin(tilt.y)
-  const cosY = Math.cos(tilt.y)
-  const sinR = Math.sin(rotY)
-  const cosR = Math.cos(rotY)
-
-  const pts: { x: number; y: number; z: number }[] = new Array(COUNT)
-  for (let i = 0; i < COUNT; i++) {
-    const p = parts[i]
-    // radial length: base 1 + jitter + occasional spike (abstract shape)
-    const grow = reduced ? 1 : 1 + 0.04 * Math.sin(now / 2400 + p.phase)
-    const rl = (1 + p.rj + p.spike * grow) * pulse
-
-    let x = p.sx * rl * cosR - p.sz * rl * sinR
-    let z = p.sx * rl * sinR + p.sz * rl * cosR
-    let y = p.sy * rl
-    const y2 = y * cosX - z * sinX
-    const z2 = y * sinX + z * cosX
-    const x2 = x * cosY + z2 * sinY
-    const z3 = -x * sinY + z2 * cosY
-
-    pts[i] = { x: cx + x2 * radius, y: cy + y2 * radius, z: z3 }
+  // wave follows the mouse: a smooth bump that glides toward the cursor
+  if (!reduced) {
+    if (mouse.active) {
+      follow.x += (mouse.x - follow.x) * 0.08
+      follow.y += (mouse.y - follow.y) * 0.08
+      bump.amp += (1 - bump.amp) * 0.06
+    } else {
+      bump.amp += (0 - bump.amp) * 0.03
+    }
   }
 
-  // faint connecting lines between nearby particles (back-face dim)
-  ctx.lineWidth = 0.6
-  for (let i = 0; i < COUNT; i++) {
-    for (let j = i + 1; j < COUNT; j++) {
-      const dx = parts[i].sx - parts[j].sx
-      const dy = parts[i].sy - parts[j].sy
-      const dz = parts[i].sz - parts[j].sz
-      const d2 = dx * dx + dy * dy + dz * dz
-      if (d2 > LINK_D2) continue
-      if (pts[i].z < 0 && pts[j].z < 0) continue
-      const alpha = 0.05 * (1 - Math.sqrt(d2) / Math.sqrt(LINK_D2))
-      ctx.strokeStyle = `rgba(139,125,235,${alpha})`
+  // wave surface: two sine components crossing for a richer ripple
+  for (const n of nodes) {
+    const x = (n.col % cols) * spacing + (n.col % 2 === 0 ? -14 : 14) + spacing / 2
+    const amp = 16 + (n.band % 2) * 8
+    const wave = Math.sin(x / 90 + t + n.phase) * amp
+    const wave2 = Math.sin(x / 47 - t * 1.4 + n.band) * 5
+    let y = bandY[n.band] + wave + wave2
+
+    // gaussian bump under the cursor — the wave rises to follow the mouse
+    if (mouse.active && !reduced) {
+      const dx = x - follow.x
+      const sigma = 190
+      const g = Math.exp(-(dx * dx) / (2 * sigma * sigma))
+      const pull = (follow.y - y) * 0.5 // ease the crest toward the cursor height
+      y += bump.amp * (g * 70 + pull * g)
+    }
+
+    n.x = x
+    n.y = y
+
+    if (n.el) {
+      n.el.style.transform = `translate(${x - n.size / 2}px, ${y - n.size / 2}px)`
+      n.el.style.opacity = String(n.baseAlpha)
+    }
+  }
+
+  // connect horizontal neighbours within the same band (a smooth wave web)
+  ctx.lineWidth = 0.8
+  for (const n of nodes) {
+    const nxt = n.col + 1
+    const other = nodes.find((m) => m.col === nxt && m.band === n.band)
+    if (!other) continue
+    const dx = other.x - n.x
+    const dy = other.y - n.y
+    const d = Math.hypot(dx, dy)
+    const alpha = 0.12 * (1 - Math.min(d / (spacing * 1.6), 1))
+    ctx.strokeStyle = `rgba(139,125,235,${alpha})`
+    ctx.beginPath()
+    ctx.moveTo(n.x, n.y)
+    ctx.lineTo(other.x, other.y)
+    ctx.stroke()
+  }
+
+  // vertical links between adjacent bands (occasional)
+  for (let band = 0; band < BANDS - 1; band++) {
+    for (const n of nodes) {
+      if (n.band !== band || n.col % 4 !== 0) continue
+      const below = nodes.find((m) => m.band === band + 1 && m.col === n.col)
+      if (!below) continue
+      ctx.strokeStyle = 'rgba(139,125,235,0.06)'
       ctx.beginPath()
-      ctx.moveTo(pts[i].x, pts[i].y)
-      ctx.lineTo(pts[j].x, pts[j].y)
+      ctx.moveTo(n.x, n.y)
+      ctx.lineTo(below.x, below.y)
       ctx.stroke()
     }
   }
 
-  // data packets
-  for (const pk of packets) {
-    const a = pts[pk.from]
-    const b = pts[pk.to]
-    const pxx = a.x + (b.x - a.x) * pk.t
-    const pyy = a.y + (b.y - a.y) * pk.t
-    const head = Math.min(pk.t + pk.speed * 14, 1)
+  // data packets along the wave
+  for (const p of packets) {
+    const a = nodes[p.a]
+    const b = nodes[p.b]
+    const pxx = a.x + (b.x - a.x) * p.t
+    const pyy = a.y + (b.y - a.y) * p.t
+    const head = Math.min(p.t + p.speed * 12, 1)
     const hx = a.x + (b.x - a.x) * head
     const hy = a.y + (b.y - a.y) * head
-    ctx.strokeStyle = 'rgba(139,125,235,0.28)'
-    ctx.lineWidth = 1
+    ctx.strokeStyle = 'rgba(139,125,235,0.3)'
+    ctx.lineWidth = 1.1
     ctx.beginPath()
     ctx.moveTo(pxx, pyy)
     ctx.lineTo(hx, hy)
     ctx.stroke()
-    ctx.fillStyle = 'rgba(196,181,253,0.7)'
+    ctx.fillStyle = 'rgba(196,181,253,0.75)'
     ctx.beginPath()
-    ctx.arc(hx, hy, 1.8, 0, Math.PI * 2)
+    ctx.arc(hx, hy, 2, 0, Math.PI * 2)
     ctx.fill()
-    pk.t += pk.speed
-    if (pk.t > 1) {
-      pk.from = pk.to
-      pk.to = Math.floor(Math.random() * COUNT)
-      pk.t = 0
+    p.t += p.speed
+    if (p.t > 1) {
+      p.a = p.b
+      p.b = Math.floor(Math.random() * nodes.length)
+      p.t = 0
     }
-  }
-
-  // particles — front bright, back dim
-  for (let i = 0; i < COUNT; i++) {
-    const p = parts[i]
-    const pt = pts[i]
-    const front = pt.z > 0
-    const depth = (pt.z + 1) / 2 // 0..1
-    const alpha = p.baseAlpha * (front ? 0.4 + 0.6 * depth : 0.12 + 0.2 * depth)
-    ctx.fillStyle = `rgba(139,125,235,${alpha})`
-    ctx.beginPath()
-    ctx.arc(pt.x, pt.y, p.size, 0, Math.PI * 2)
-    ctx.fill()
   }
 
   if (!reduced) raf = requestAnimationFrame(tick)
 }
 
-function onMouseMove(e: MouseEvent) {
-  mouse.tx = e.clientX - window.innerWidth / 2
-  mouse.ty = e.clientY - window.innerHeight / 2
-  mouse.active = true
-}
-function onMouseLeave() { mouse.active = false }
 function onResize() {
   if (raf) cancelAnimationFrame(raf)
   raf = requestAnimationFrame(tick)
 }
 
+function onMouseMove(e: MouseEvent) {
+  mouse.x = e.clientX
+  mouse.y = e.clientY
+  mouse.active = true
+}
+function onMouseLeave() {
+  mouse.active = false
+}
+
 onMounted(() => {
   reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  wrap.value?.querySelectorAll<HTMLElement>('[data-node]').forEach((el, i) => {
+    if (nodes[i]) nodes[i].el = el
+  })
+  // initial placement (no top-left flash)
+  const w = window.innerWidth
+  const spacing = COL_GAP
+  const cols = Math.floor(w / spacing) + 2
+  const bandY = [w * 0, window.innerHeight * 0.22, window.innerHeight * 0.4, window.innerHeight * 0.58]
+  for (const n of nodes) {
+    n.x = ((n.col % cols) * spacing) + spacing / 2
+    n.y = bandY[n.band + 1] || window.innerHeight * 0.4
+  }
+  window.addEventListener('resize', onResize)
   window.addEventListener('mousemove', onMouseMove)
   window.addEventListener('mouseleave', onMouseLeave)
-  window.addEventListener('resize', onResize)
   raf = requestAnimationFrame(tick)
 })
 
 onBeforeUnmount(() => {
   cancelAnimationFrame(raf)
+  window.removeEventListener('resize', onResize)
   window.removeEventListener('mousemove', onMouseMove)
   window.removeEventListener('mouseleave', onMouseLeave)
-  window.removeEventListener('resize', onResize)
 })
 </script>
 
 <template>
-  <canvas ref="canvas" class="pointer-events-none fixed inset-0 h-full w-full" aria-hidden="true" />
+  <div ref="wrap" class="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden="true">
+    <canvas ref="canvas" class="absolute inset-0 h-full w-full" />
+    <div
+      v-for="n in nodes"
+      :key="n.id"
+      data-node
+      class="absolute left-0 top-0 will-change-transform text-[var(--color-primary)]"
+      :style="{ width: `${n.size}px`, height: `${n.size}px` }"
+    >
+      <component :is="ICONS[n.icon]" class="h-full w-full" stroke-width="1.6" />
+    </div>
+  </div>
 </template>

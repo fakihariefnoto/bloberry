@@ -948,6 +948,16 @@ paths:
         '200':
           description: Visibility updated
   /shares:
+    get:
+      operationId: listShareLinks
+      summary: List the current tenant's share links
+      responses:
+        '200':
+          description: Share links
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
     post:
       operationId: createShareLink
       summary: Create a signed share link
@@ -1224,6 +1234,17 @@ paths:
                     properties:
                       job_id:
                         type: string
+  /jobs:
+    get:
+      operationId: listJobs
+      summary: List the current tenant's jobs
+      responses:
+        '200':
+          description: Jobs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
   /jobs/{jobId}:
     get:
       operationId: getJob

@@ -31,6 +31,7 @@ type Usecase interface {
 	DeleteBackend(ctx context.Context, id string) error
 	CheckHealth(ctx context.Context, id string) (*domain.StorageBackend, error)
 	InstallStats(ctx context.Context) (*InstallStats, error)
+	ListAllTenants(ctx context.Context) ([]domain.Tenant, error)
 }
 
 type InstallStats struct {
@@ -49,4 +50,9 @@ type Counters interface {
 	CountObjects(ctx context.Context) (int64, error)
 	CountActiveJobs(ctx context.Context) (int64, error)
 	SumObjectBytes(ctx context.Context) (int64, error)
+}
+
+// AllTenantsReader lists every tenant (platform admin).
+type AllTenantsReader interface {
+	ListAll(ctx context.Context) ([]domain.Tenant, error)
 }

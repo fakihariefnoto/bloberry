@@ -1229,6 +1229,11 @@ type ClientInterface interface {
 	// Corresponds with GET /health (the `Health` operationId).
 	Health(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListJobs List the current tenant's jobs
+	//
+	// Corresponds with GET /jobs (the `ListJobs` operationId).
+	ListJobs(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetJob Poll job status
 	//
 	// Corresponds with GET /jobs/{jobId} (the `GetJob` operationId).
@@ -1363,6 +1368,11 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /s/{slug} (the `ResolveShortLink` operationId).
 	ResolveShortLink(ctx context.Context, slug string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListShareLinks List the current tenant's share links
+	//
+	// Corresponds with GET /shares (the `ListShareLinks` operationId).
+	ListShareLinks(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CreateShareLinkWithBody Create a signed share link
 	//
@@ -2604,6 +2614,21 @@ func (c *Client) Health(ctx context.Context, reqEditors ...RequestEditorFn) (*ht
 	return c.Client.Do(req)
 }
 
+// ListJobs List the current tenant's jobs
+//
+// Corresponds with GET /jobs (the `ListJobs` operationId).
+func (c *Client) ListJobs(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListJobsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // GetJob Poll job status
 //
 // Corresponds with GET /jobs/{jobId} (the `GetJob` operationId).
@@ -2939,6 +2964,21 @@ func (c *Client) SetVisibility(ctx context.Context, fileId FileId, body SetVisib
 // Corresponds with GET /s/{slug} (the `ResolveShortLink` operationId).
 func (c *Client) ResolveShortLink(ctx context.Context, slug string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewResolveShortLinkRequest(c.Server, slug)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListShareLinks List the current tenant's share links
+//
+// Corresponds with GET /shares (the `ListShareLinks` operationId).
+func (c *Client) ListShareLinks(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListShareLinksRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -5039,6 +5079,33 @@ func NewHealthRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
+// NewListJobsRequest constructs an http.Request for the ListJobs method
+func NewListJobsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/jobs")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewGetJobRequest constructs an http.Request for the GetJob method
 func NewGetJobRequest(server string, jobId JobId) (*http.Request, error) {
 	var err error
@@ -5613,6 +5680,33 @@ func NewResolveShortLinkRequest(server string, slug string) (*http.Request, erro
 	}
 
 	operationPath := fmt.Sprintf("/s/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListShareLinksRequest constructs an http.Request for the ListShareLinks method
+func NewListShareLinksRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/shares")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -6843,6 +6937,13 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /health (the `Health` operationId).
 	HealthWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*HealthResponse, error)
 
+	// ListJobsWithResponse List the current tenant's jobs
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /jobs (the `ListJobs` operationId).
+	ListJobsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListJobsResponse, error)
+
 	// GetJobWithResponse Poll job status
 	//
 	// Returns a wrapper object for the known response body format(s).
@@ -6989,6 +7090,13 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /s/{slug} (the `ResolveShortLink` operationId).
 	ResolveShortLinkWithResponse(ctx context.Context, slug string, reqEditors ...RequestEditorFn) (*ResolveShortLinkResponse, error)
+
+	// ListShareLinksWithResponse List the current tenant's share links
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /shares (the `ListShareLinks` operationId).
+	ListShareLinksWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListShareLinksResponse, error)
 
 	// CreateShareLinkWithBodyWithResponse Create a signed share link
 	//
@@ -9039,6 +9147,47 @@ func (r HealthResponse) ContentType() string {
 	return ""
 }
 
+type ListJobsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Envelope
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListJobsResponse) GetJSON200() *Envelope {
+	return r.JSON200
+}
+
+// GetBody returns the raw response body bytes
+func (r ListJobsResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListJobsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListJobsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListJobsResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type GetJobResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -9579,6 +9728,47 @@ func (r ResolveShortLinkResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ResolveShortLinkResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListShareLinksResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Envelope
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListShareLinksResponse) GetJSON200() *Envelope {
+	return r.JSON200
+}
+
+// GetBody returns the raw response body bytes
+func (r ListShareLinksResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListShareLinksResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListShareLinksResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListShareLinksResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -11181,6 +11371,19 @@ func (c *ClientWithResponses) HealthWithResponse(ctx context.Context, reqEditors
 	return ParseHealthResponse(rsp)
 }
 
+// ListJobsWithResponse List the current tenant's jobs
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /jobs (the `ListJobs` operationId).
+func (c *ClientWithResponses) ListJobsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListJobsResponse, error) {
+	rsp, err := c.ListJobs(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListJobsResponse(rsp)
+}
+
 // GetJobWithResponse Poll job status
 //
 // Returns a wrapper object for the known response body format(s).
@@ -11452,6 +11655,19 @@ func (c *ClientWithResponses) ResolveShortLinkWithResponse(ctx context.Context, 
 		return nil, err
 	}
 	return ParseResolveShortLinkResponse(rsp)
+}
+
+// ListShareLinksWithResponse List the current tenant's share links
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /shares (the `ListShareLinks` operationId).
+func (c *ClientWithResponses) ListShareLinksWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListShareLinksResponse, error) {
+	rsp, err := c.ListShareLinks(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListShareLinksResponse(rsp)
 }
 
 // CreateShareLinkWithBodyWithResponse Create a signed share link
@@ -12996,6 +13212,32 @@ func ParseHealthResponse(rsp *http.Response) (*HealthResponse, error) {
 	return response, nil
 }
 
+// ParseListJobsResponse parses an HTTP response from a ListJobsWithResponse call
+func ParseListJobsResponse(rsp *http.Response) (*ListJobsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListJobsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Envelope
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseGetJobResponse parses an HTTP response from a GetJobWithResponse call
 func ParseGetJobResponse(rsp *http.Response) (*GetJobResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -13312,6 +13554,32 @@ func ParseResolveShortLinkResponse(rsp *http.Response) (*ResolveShortLinkRespons
 	response := &ResolveShortLinkResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseListShareLinksResponse parses an HTTP response from a ListShareLinksWithResponse call
+func ParseListShareLinksResponse(rsp *http.Response) (*ListShareLinksResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListShareLinksResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Envelope
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
 	}
 
 	return response, nil

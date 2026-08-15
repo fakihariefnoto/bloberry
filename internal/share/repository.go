@@ -17,6 +17,7 @@ type Repository interface {
 	Update(ctx context.Context, l *domain.ShareLink) error
 	IncrementHit(ctx context.Context, tenantID, id string) error
 	Revoke(ctx context.Context, tenantID, id string) error
+	ListByTenant(ctx context.Context, tenantID string) ([]domain.ShareLink, error)
 }
 
 type ShareLink struct {
@@ -32,5 +33,6 @@ type Usecase interface {
 	CreateShort(ctx context.Context, tenantID, objectID, createdBy string) (*ShareLink, error)
 	Revoke(ctx context.Context, tenantID, id string) error
 	ListByObject(ctx context.Context, tenantID, objectID string) ([]ShareLink, error)
+	ListByTenant(ctx context.Context, tenantID string) ([]ShareLink, error)
 	Resolve(ctx context.Context, slug string) (*domain.Object, *domain.ShareLink, error)
 }

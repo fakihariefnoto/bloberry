@@ -869,6 +869,9 @@ type ServerInterface interface {
 	// Health Health check
 	// (GET /health)
 	Health(w http.ResponseWriter, r *http.Request)
+	// ListJobs List the current tenant's jobs
+	// (GET /jobs)
+	ListJobs(w http.ResponseWriter, r *http.Request)
 	// GetJob Poll job status
 	// (GET /jobs/{jobId})
 	GetJob(w http.ResponseWriter, r *http.Request, jobId JobId)
@@ -911,6 +914,9 @@ type ServerInterface interface {
 	// ResolveShortLink Resolve a short URL (HTML/redirect, not the envelope)
 	// (GET /s/{slug})
 	ResolveShortLink(w http.ResponseWriter, r *http.Request, slug string)
+	// ListShareLinks List the current tenant's share links
+	// (GET /shares)
+	ListShareLinks(w http.ResponseWriter, r *http.Request)
 	// CreateShareLink Create a signed share link
 	// (POST /shares)
 	CreateShareLink(w http.ResponseWriter, r *http.Request)
@@ -1232,6 +1238,12 @@ func (_ Unimplemented) Health(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// ListJobs List the current tenant's jobs
+// (GET /jobs)
+func (_ Unimplemented) ListJobs(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // GetJob Poll job status
 // (GET /jobs/{jobId})
 func (_ Unimplemented) GetJob(w http.ResponseWriter, r *http.Request, jobId JobId) {
@@ -1313,6 +1325,12 @@ func (_ Unimplemented) SetVisibility(w http.ResponseWriter, r *http.Request, fil
 // ResolveShortLink Resolve a short URL (HTML/redirect, not the envelope)
 // (GET /s/{slug})
 func (_ Unimplemented) ResolveShortLink(w http.ResponseWriter, r *http.Request, slug string) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListShareLinks List the current tenant's share links
+// (GET /shares)
+func (_ Unimplemented) ListShareLinks(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -2301,6 +2319,20 @@ func (siw *ServerInterfaceWrapper) Health(w http.ResponseWriter, r *http.Request
 	handler.ServeHTTP(w, r)
 }
 
+// ListJobs operation middleware
+func (siw *ServerInterfaceWrapper) ListJobs(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListJobs(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetJob operation middleware
 func (siw *ServerInterfaceWrapper) GetJob(w http.ResponseWriter, r *http.Request) {
 
@@ -2665,6 +2697,20 @@ func (siw *ServerInterfaceWrapper) ResolveShortLink(w http.ResponseWriter, r *ht
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ResolveShortLink(w, r, slug)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListShareLinks operation middleware
+func (siw *ServerInterfaceWrapper) ListShareLinks(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListShareLinks(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -3333,6 +3379,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Patch(options.BaseURL+"/objects/{fileId}/visibility", wrapper.SetVisibility)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/shares", wrapper.ListShareLinks)
+	})
+	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/shares", wrapper.CreateShareLink)
 	})
 	r.Group(func(r chi.Router) {
@@ -3376,6 +3425,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/archives/bundle", wrapper.CreateBundle)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/jobs", wrapper.ListJobs)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/jobs/{jobId}", wrapper.GetJob)

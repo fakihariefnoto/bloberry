@@ -23,6 +23,8 @@ generate-server: api/openapi.yaml
 
 web:
 	$(MAKE) -C web build
+	rm -rf internal/platform/web/static
+	cp -r web/dist internal/platform/web/static
 
 go-build:
 	go build -o $(SERVER) ./cmd/bloberry-server

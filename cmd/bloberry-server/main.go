@@ -142,7 +142,7 @@ func main() {
 	usageUC := usageuc.NewUsecase(usageuc.Deps{Repo: usagerepo.New(mdb.DB), Objects: objectRepo})
 
 	adminRepo := adminrepo.New(mdb.DB)
-	adminUC := adminuc.NewUsecase(adminuc.Deps{Repo: adminRepo, Registry: reg, Envelope: crypto.NewEnvelopeOrPanic(cfg.CredentialEncryptionKey), Counters: adminRepo})
+	adminUC := adminuc.NewUsecase(adminuc.Deps{Repo: adminRepo, Registry: reg, Envelope: crypto.NewEnvelopeOrPanic(cfg.CredentialEncryptionKey), Counters: adminRepo, AllTenants: tenantRepo})
 
 	// Bootstrap: register all stored backends into the in-memory driver
 	// registry at boot so the registry survives restarts (ADR-2).
@@ -180,12 +180,13 @@ func main() {
 	// /v1 prefix because the spec's `servers.url` is /v1).
 	apiRouter := chi.NewRouter()
 	server.HandlerFromMux(handler, apiRouter)
-	r.Mount("/", authGate(apiMw, apiRouter))
-
-	// embedded dashboard
+	// Embedded dashboard is the SPA catch-all — anything the API doesn't own.
 	if webHandler, err := web.Handler(); err == nil {
-		r.NotFound(webHandler.ServeHTTP)
+		apiRouter.NotFound(webHandler.ServeHTTP)
+	} else {
+		log.Printf("web embed unavailable: %v", err)
 	}
+	r.Mount("/", authGate(apiMw, apiRouter))
 
 	log.Printf("bloberry-server listening on %s", cfg.ServerAddr)
 	srv := &http.Server{Addr: cfg.ServerAddr, Handler: r}
@@ -220,7 +221,10 @@ func authGate(mw *httpx.Middleware, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
 		key := r.Method + " " + path
-		if publicPaths[key] || (r.Method == "GET" && strings.HasPrefix(path, "/s/")) {
+		// The embedded dashboard + its static assets are public; API paths are
+		// gated. Everything under /assets or / is SPA content, not the API.
+		if publicPaths[key] || (r.Method == "GET" && strings.HasPrefix(path, "/s/")) ||
+			(r.Method == "GET" && (path == "/" || strings.HasPrefix(path, "/assets/") || strings.HasPrefix(path, "/favicon"))) {
 			next.ServeHTTP(w, r)
 			return
 		}

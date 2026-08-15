@@ -1,0 +1,91 @@
+@import "tailwindcss";
+
+/* Design tokens — one source per design/style-guide.md. Pages reference these
+   tokens only; no arbitrary values or raw hex literals outside this file. */
+
+:root {
+  /* color */
+  --color-background: #f9f9fb;
+  --color-surface: #ededf3;
+  --color-surface-raised: #ffffff;
+  --color-border: #d4d4e3;
+  --color-text: #17171c;
+  --color-text-muted: #5c5c70;
+  --color-primary: #3a22dd;
+  --color-on-primary: #ffffff;
+  --color-primary-subtle: #e7e3fb;
+  --color-accent: #3a22dd;
+  --color-error: #c52b20;
+  --color-success: #1f7a40;
+  --color-warning: #8a5300;
+  --color-disabled: #d4d4e3;
+  --color-on-disabled: #8a8a9c;
+
+  /* typography */
+  --font-sans: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, "Cascadia Mono", monospace;
+
+  /* radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-full: 9999px;
+
+  /* elevation */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.12);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.16);
+
+  /* motion */
+  --motion-fast: 150ms ease-out;
+  --motion-base: 250ms ease-in-out;
+  --motion-slow: 400ms ease-in-out;
+}
+
+:root[data-theme="dark"] {
+  --color-background: #17161d;
+  --color-surface: #23212b;
+  --color-surface-raised: #2c2a36;
+  --color-border: #3a3749;
+  --color-text: #f1f1f4;
+  --color-text-muted: #9f9daf;
+  --color-primary: #8b7deb;
+  --color-on-primary: #17161d;
+  --color-primary-subtle: #2a2540;
+  --color-accent: #8b7deb;
+  --color-error: #e46258;
+  --color-success: #47d17a;
+  --color-warning: #e8a33d;
+  --color-disabled: #3a3749;
+  --color-on-disabled: #6c6a7c;
+}
+
+@theme inline {
+  --color-background: var(--color-background);
+  --color-surface: var(--color-surface);
+  --color-surface-raised: var(--color-surface-raised);
+  --color-border: var(--color-border);
+  --color-text: var(--color-text);
+  --color-text-muted: var(--color-text-muted);
+  --color-primary: var(--color-primary);
+  --color-on-primary: var(--color-on-primary);
+  --color-primary-subtle: var(--color-primary-subtle);
+  --color-accent: var(--color-accent);
+  --color-error: var(--color-error);
+  --color-success: var(--color-success);
+  --color-warning: var(--color-warning);
+  --color-disabled: var(--color-disabled);
+  --color-on-disabled: var(--color-on-disabled);
+
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-full: var(--radius-full);
+
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+}

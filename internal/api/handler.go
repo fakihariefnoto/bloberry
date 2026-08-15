@@ -18,7 +18,7 @@ import (
 	"github.com/fakihariefnoto/bloberry/internal/grant"
 	"github.com/fakihariefnoto/bloberry/internal/job"
 	"github.com/fakihariefnoto/bloberry/internal/object"
-	"github.com/fakihariefnoto/bloberry/internal/platform/api"
+	server "github.com/fakihariefnoto/bloberry/internal/platform/api"
 	"github.com/fakihariefnoto/bloberry/internal/platform/httpx"
 	"github.com/fakihariefnoto/bloberry/internal/share"
 	"github.com/fakihariefnoto/bloberry/internal/storage"
@@ -418,10 +418,10 @@ func (h *Handler) CreateTenant(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
-		Name            string `json:"name"`
-		Slug            string `json:"slug"`
-		QuotaBytes      int64  `json:"quota_bytes"`
-		QuotaObjects    int64  `json:"quota_objects"`
+		Name             string `json:"name"`
+		Slug             string `json:"slug"`
+		QuotaBytes       int64  `json:"quota_bytes"`
+		QuotaObjects     int64  `json:"quota_objects"`
 		DefaultBackendID string `json:"default_backend_id"`
 	}
 	if err := decodeBody(r, &req); err != nil {
@@ -865,10 +865,24 @@ func (h *Handler) DownloadObject(w http.ResponseWriter, r *http.Request, fileId 
 	}
 	w.Header().Set("Content-Type", res.ContentType)
 	w.Header().Set("Content-Disposition", "attachment; filename=\""+strings.ReplaceAll(res.Object.Name, "\"", "")+"\"")
-    serveProxyStream(w, r, res.Object.Name, res.Object.UpdatedAt, res.Stream)
+	serveProxyStream(w, r, res.Object.Name, res.Object.UpdatedAt, res.Stream)
 }
 
 // --- shares ---
+
+func (h *Handler) ListShareLinks(w http.ResponseWriter, r *http.Request) {
+	p := principalOf(r)
+	if p == nil {
+		httpx.Error(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	links, err := h.Shares.ListByTenant(r.Context(), p.TenantID)
+	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	data(w, http.StatusOK, links)
+}
 
 func (h *Handler) CreateShareLink(w http.ResponseWriter, r *http.Request) {
 	p := principalOf(r)
@@ -944,7 +958,7 @@ func (h *Handler) ResolveShortLink(w http.ResponseWriter, r *http.Request, slug 
 		return
 	}
 	w.Header().Set("Content-Type", res.ContentType)
-    serveProxyStream(w, r, res.Object.Name, res.Object.UpdatedAt, res.Stream)
+	serveProxyStream(w, r, res.Object.Name, res.Object.UpdatedAt, res.Stream)
 }
 
 // --- applications & keys ---
@@ -1036,11 +1050,11 @@ func (h *Handler) RevokeAccessKey(w http.ResponseWriter, r *http.Request, applic
 func (h *Handler) CreateGrant(w http.ResponseWriter, r *http.Request) {
 	p := principalOf(r)
 	var req struct {
-		FolderID     string    `json:"folder_id"`
+		FolderID      string   `json:"folder_id"`
 		PrincipalType string   `json:"principal_type"`
-		PrincipalID  string    `json:"principal_id"`
-		Permissions  []string  `json:"permissions"`
-		ExpiresAt    *string   `json:"expires_at"`
+		PrincipalID   string   `json:"principal_id"`
+		Permissions   []string `json:"permissions"`
+		ExpiresAt     *string  `json:"expires_at"`
 	}
 	if err := decodeBody(r, &req); err != nil {
 		httpx.Error(w, http.StatusBadRequest, "bad_request")
@@ -1117,6 +1131,20 @@ func (h *Handler) CreateBundle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	data(w, http.StatusAccepted, map[string]interface{}{"job_id": jobID})
+}
+
+func (h *Handler) ListJobs(w http.ResponseWriter, r *http.Request) {
+	p := principalOf(r)
+	if p == nil {
+		httpx.Error(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	jobs, err := h.Jobs.List(r.Context(), p.TenantID)
+	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	data(w, http.StatusOK, jobs)
 }
 
 func (h *Handler) GetJob(w http.ResponseWriter, r *http.Request, jobId server.JobId) {
@@ -1254,14 +1282,12 @@ func (h *Handler) ListAllTenants(w http.ResponseWriter, r *http.Request) {
 	if !requireAdmin(w, r) {
 		return
 	}
-	// admin lists all tenants via tenant repo through admin counters
-	ts, err := h.Tenants.ListForUser(r.Context(), principalOf(r).ID)
+	ts, err := h.Admin.ListAllTenants(r.Context())
 	if err != nil {
 		httpx.WriteError(w, err)
 		return
 	}
-	_ = ts
-	data(w, http.StatusOK, map[string]interface{}{"tenants": ts})
+	data(w, http.StatusOK, ts)
 }
 
 func (h *Handler) AdminUsage(w http.ResponseWriter, r *http.Request) {
@@ -1291,4 +1317,3 @@ func (h *Handler) InstallStats(w http.ResponseWriter, r *http.Request) {
 func strPtr(s string) *string { return &s }
 
 // helpers to satisfy unused-imports guard in some builds
-

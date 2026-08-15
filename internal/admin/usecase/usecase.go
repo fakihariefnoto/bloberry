@@ -12,10 +12,11 @@ import (
 )
 
 type usecase struct {
-	repo      admin.Repository
-	reg       admin.Registry
-	counters  admin.Counters
-	envelope  envelope
+	repo     admin.Repository
+	reg      admin.Registry
+	counters admin.Counters
+	envelope envelope
+	allTenants admin.AllTenantsReader
 }
 
 type envelope interface {
@@ -23,14 +24,15 @@ type envelope interface {
 }
 
 type Deps struct {
-	Repo      admin.Repository
-	Registry  admin.Registry
-	Counters  admin.Counters
-	Envelope  envelope
+	Repo       admin.Repository
+	Registry   admin.Registry
+	Counters   admin.Counters
+	Envelope   envelope
+	AllTenants admin.AllTenantsReader
 }
 
 func NewUsecase(d Deps) admin.Usecase {
-	return &usecase{repo: d.Repo, reg: d.Registry, counters: d.Counters, envelope: d.Envelope}
+	return &usecase{repo: d.Repo, reg: d.Registry, counters: d.Counters, envelope: d.Envelope, allTenants: d.AllTenants}
 }
 
 var _ admin.Usecase = (*usecase)(nil)
@@ -137,4 +139,11 @@ func marshalJSON(v interface{}) ([]byte, error) {
 		return []byte("{}"), nil
 	}
 	return json.Marshal(v)
+}
+
+func (u *usecase) ListAllTenants(ctx context.Context) ([]domain.Tenant, error) {
+	if u.allTenants == nil {
+		return []domain.Tenant{}, nil
+	}
+	return u.allTenants.ListAll(ctx)
 }

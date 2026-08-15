@@ -1,0 +1,37 @@
+@import "./lib/tokens.css";
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    color: var(--color-text);
+    background: var(--color-background);
+  }
+  body {
+    margin: 0;
+  }
+  * {
+    box-sizing: border-box;
+  }
+  /* Respect OS reduce motion (design/style-guide.md §Motion). */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+/* Semantic storage-state mapping (style-guide §Colors). */
+@layer utilities {
+  .text-public { color: var(--color-warning); }
+  .text-private { color: var(--color-text-muted); }
+  .text-active { color: var(--color-success); }
+  .text-pending { color: var(--color-warning); }
+  .text-failed { color: var(--color-error); }
+  .bg-public { background: var(--color-warning); }
+  .bg-active { background: var(--color-success); }
+  .bg-pending { background: var(--color-warning); }
+  .bg-failed { background: var(--color-error); }
+}

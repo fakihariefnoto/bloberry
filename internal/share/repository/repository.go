@@ -86,3 +86,16 @@ func (r *repo) Revoke(ctx context.Context, tenantID, id string) error {
 	_, err := r.coll.UpdateOne(ctx, bson.M{"_id": id, "tenant_id": tenantID}, bson.M{"$set": bson.M{"revoked_at": now}})
 	return err
 }
+
+func (r *repo) ListByTenant(ctx context.Context, tenantID string) ([]domain.ShareLink, error) {
+	cur, err := r.coll.Find(ctx, bson.M{"tenant_id": tenantID})
+	if err != nil {
+		return nil, err
+	}
+	defer cur.Close(ctx)
+	var out []domain.ShareLink
+	if err := cur.All(ctx, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}

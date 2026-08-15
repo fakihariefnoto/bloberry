@@ -111,3 +111,21 @@ func (u *usecase) Resolve(ctx context.Context, slug string) (*domain.Object, *do
 func slug() string {
 	return crypto.RandomID(4)
 }
+
+func (u *usecase) ListByTenant(ctx context.Context, tenantID string) ([]share.ShareLink, error) {
+	links, err := u.repo.ListByTenant(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]share.ShareLink, 0, len(links))
+	for _, l := range links {
+		if l.RevokedAt != nil {
+			continue
+		}
+		out = append(out, share.ShareLink{
+			ID: l.ID, Kind: l.Kind, ExpiresAt: l.ExpiresAt, HitCount: l.HitCount,
+			URL: u.baseURL + "/s/" + l.Slug,
+		})
+	}
+	return out, nil
+}

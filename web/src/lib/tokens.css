@@ -15,6 +15,7 @@
   --color-on-primary: #ffffff;
   --color-primary-subtle: #e7e3fb;
   --color-accent: #3a22dd;
+  --color-accent-deep: #1e146b;
   --color-error: #c52b20;
   --color-success: #1f7a40;
   --color-warning: #8a5300;
@@ -53,6 +54,7 @@
   --color-on-primary: #17161d;
   --color-primary-subtle: #2a2540;
   --color-accent: #8b7deb;
+  --color-accent-deep: #2a1a8f;
   --color-error: #e46258;
   --color-success: #47d17a;
   --color-warning: #e8a33d;
@@ -71,6 +73,7 @@
   --color-on-primary: var(--color-on-primary);
   --color-primary-subtle: var(--color-primary-subtle);
   --color-accent: var(--color-accent);
+  --color-accent-deep: var(--color-accent-deep);
   --color-error: var(--color-error);
   --color-success: var(--color-success);
   --color-warning: var(--color-warning);

@@ -1,18 +1,26 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import {
-  ArrowRight, ArrowUpRight, Boxes, KeyRound, ShieldCheck, Server, Globe,
-  HardDrive, UploadCloud, Database, Cloud, Lock,
+  ArrowRight, Boxes, KeyRound, ShieldCheck, Server, Globe,
+  HardDrive, Database, Cloud, Lock, Sparkles, Zap, Terminal, Layers,
 } from 'lucide-vue-next'
 import { api } from '../lib/api'
+import { useAuthStore } from '../stores/auth'
 import StorageConstellation from '../components/StorageConstellation.vue'
 
 const router = useRouter()
+const auth = useAuthStore()
 const needsSetup = ref(false)
 const checking = ref(true)
 
 onMounted(async () => {
+  // Already signed in? Straight to the dashboard.
+  if (auth.isAuthenticated) {
+    router.replace({ name: 'files' })
+    return
+  }
+  document.documentElement.dataset.theme = 'dark'
   try {
     const st = await api.get<{ needs_setup: boolean }>('/setup/status')
     needsSetup.value = st.needs_setup
@@ -23,249 +31,275 @@ onMounted(async () => {
   }
 })
 
+onUnmounted(() => {
+  delete document.documentElement.dataset.theme
+})
+
 function primaryCta() {
   router.push(needsSetup.value ? { name: 'setup' } : { name: 'login' })
 }
 </script>
 
 <template>
-  <div class="min-h-screen bg-[var(--color-background)] text-[var(--color-text)]">
+  <div class="min-h-screen bg-[#07060f] text-white antialiased">
+    <!-- Ambient background -->
+    <div class="pointer-events-none fixed inset-0">
+      <div class="absolute inset-0 opacity-60" style="background: radial-gradient(60% 45% at 50% 0%, rgba(139,125,235,0.18), transparent 70%)" />
+      <div class="absolute inset-0 opacity-40" style="background: radial-gradient(45% 35% at 85% 60%, rgba(30,20,107,0.5), transparent 70%)" />
+      <div class="absolute inset-0 opacity-30" style="background: radial-gradient(40% 30% at 10% 80%, rgba(139,125,235,0.12), transparent 70%)" />
+    </div>
+
     <!-- Nav -->
-    <header class="sticky top-0 z-20 border-b border-[var(--color-border)]/60 bg-[var(--color-background)]/80 backdrop-blur">
+    <header class="sticky top-0 z-30 border-b border-white/5 bg-[#07060f]/70 backdrop-blur-xl">
       <div class="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
         <a href="#" class="flex items-center gap-2.5">
-          <span class="flex h-8 w-8 items-center justify-center rounded-[var(--radius-md)] bg-[var(--color-primary)] shadow-[var(--shadow-sm)]">
-            <Boxes class="h-4 w-4 text-[var(--color-on-primary)]" />
+          <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-[#8b7deb] to-[#2a1a8f] shadow-[0_0_24px_rgba(139,125,235,0.4)]">
+            <Boxes class="h-4 w-4 text-white" />
           </span>
-          <span class="text-[15px] font-semibold tracking-tight text-[var(--color-text)]">Bloberry</span>
+          <span class="text-[15px] font-semibold tracking-tight">Bloberry</span>
         </a>
-        <nav class="hidden items-center gap-8 text-sm text-[var(--color-text-muted)] md:flex">
-          <a href="#features" class="transition-colors hover:text-[var(--color-text)]">Platform</a>
-          <a href="#drivers" class="transition-colors hover:text-[var(--color-text)]">Storage</a>
-          <a href="#security" class="transition-colors hover:text-[var(--color-text)]">Security</a>
-          <a href="#pricing" class="transition-colors hover:text-[var(--color-text)]">Self-host</a>
+        <nav class="hidden items-center gap-8 text-sm text-white/60 md:flex">
+          <a href="#platform" class="transition-colors hover:text-white">Platform</a>
+          <a href="#storage" class="transition-colors hover:text-white">Storage</a>
+          <a href="#security" class="transition-colors hover:text-white">Security</a>
+          <a href="#selfhost" class="transition-colors hover:text-white">Self-host</a>
         </nav>
-        <button
-          class="inline-flex h-9 items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-primary)] px-4 text-sm font-semibold text-[var(--color-on-primary)] transition-opacity hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2"
-          @click="primaryCta"
-        >
-          {{ checking ? 'Loading…' : needsSetup ? 'Get started' : 'Sign in' }}
-        </button>
+        <div class="flex items-center gap-3">
+          <button
+            class="inline-flex h-9 items-center gap-1.5 rounded-lg bg-gradient-to-r from-[#8b7deb] to-[#6f5ce0] px-4 text-sm font-semibold text-white shadow-[0_0_20px_rgba(139,125,235,0.35)] transition-opacity hover:opacity-90"
+            @click="primaryCta"
+          >
+            {{ checking ? 'Loading…' : needsSetup ? 'Get started' : 'Sign in' }}
+          </button>
+        </div>
       </div>
     </header>
 
     <!-- Hero -->
-    <section class="relative overflow-hidden">
+    <section class="relative">
       <div class="pointer-events-none absolute inset-0">
         <StorageConstellation />
       </div>
-      <div class="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-b from-transparent to-[var(--color-background)]" />
+      <div class="pointer-events-none absolute inset-x-0 bottom-0 h-48 bg-gradient-to-b from-transparent to-[#07060f]" />
 
-      <div class="relative mx-auto max-w-6xl px-6 pb-16 pt-16 md:pt-20">
+      <div class="relative mx-auto max-w-6xl px-6 pb-20 pt-20 md:pt-24">
         <div class="mx-auto max-w-3xl text-center">
-          <p class="mx-auto inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-raised)] px-3 py-1 text-xs font-medium text-[var(--color-text-muted)]">
-            <Lock class="h-3 w-3 text-[var(--color-primary)]" />
+          <p class="mx-auto inline-flex items-center gap-2 rounded-full border border-[#8b7deb]/30 bg-[#8b7deb]/10 px-3.5 py-1.5 text-xs font-medium text-[#c4b5fd]">
+            <Sparkles class="h-3 w-3" />
             Self-hosted · your credentials, your bytes
           </p>
-          <h1 class="mt-5 text-balance text-[clamp(2.2rem,5vw,3.6rem)] font-bold leading-[1.08] tracking-tight text-[var(--color-text)]">
-            One API over any object storage.
+          <h1 class="mt-6 text-balance text-[clamp(2.4rem,6vw,4.2rem)] font-bold leading-[1.05] tracking-tight">
+            One API over
+            <span class="bg-gradient-to-r from-[#a78bfa] via-[#8b7deb] to-[#4c3fd4] bg-clip-text text-transparent">any object storage.</span>
           </h1>
-          <p class="mx-auto mt-5 max-w-xl text-pretty text-base leading-relaxed text-[var(--color-text-muted)]">
-            Bloberry gives you real folders, per-folder permissions and application keys on top of
-            S3, R2, OSS, GCS, Azure Blob or plain disk — without moving your bytes.
+          <p class="mx-auto mt-6 max-w-xl text-pretty text-base leading-relaxed text-white/60">
+            Real folders, per-folder permissions and application keys on top of S3, R2, OSS, GCS,
+            Azure Blob or plain disk — without moving your bytes.
           </p>
-          <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
+          <div class="mt-9 flex flex-wrap items-center justify-center gap-3">
             <button
-              class="inline-flex h-12 items-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-primary)] px-6 text-sm font-semibold text-[var(--color-on-primary)] shadow-[var(--shadow-md)] transition-opacity hover:opacity-90"
+              class="group inline-flex h-12 items-center gap-2 rounded-lg bg-gradient-to-r from-[#8b7deb] to-[#4c3fd4] px-7 text-sm font-semibold text-white shadow-[0_0_32px_rgba(139,125,235,0.4)] transition-all hover:shadow-[0_0_48px_rgba(139,125,235,0.6)]"
               @click="primaryCta"
             >
-              {{ needsSetup ? 'Set up your instance' : 'Sign in to dashboard' }}
-              <ArrowRight class="h-4 w-4" />
+              {{ needsSetup ? 'Set up your instance' : 'Enter the dashboard' }}
+              <ArrowRight class="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </button>
-            <a href="#features" class="inline-flex h-12 items-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-raised)] px-5 text-sm font-semibold text-[var(--color-text)] transition-colors hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]">
+            <a
+              href="#platform"
+              class="inline-flex h-12 items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-6 text-sm font-semibold text-white/80 backdrop-blur transition-colors hover:border-[#8b7deb]/50 hover:text-white"
+            >
               Explore the platform
             </a>
           </div>
+
+          <div class="mt-10 flex items-center justify-center gap-2 text-xs text-white/40">
+            <Terminal class="h-3.5 w-3.5" />
+            <span class="font-mono">bloberry://assets — one path for every provider</span>
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- Providers strip (driver identity) -->
-    <section class="border-y border-[var(--color-border)] bg-[var(--color-surface)]">
-      <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-10 gap-y-4 px-6 py-8">
-        <p class="w-full text-center text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)] md:w-auto md:text-left">
-          One interface, six providers
-        </p>
-        <span class="inline-flex items-center gap-2 text-sm font-medium text-[var(--color-text-muted)]"><Cloud class="h-4 w-4" /> AWS S3</span>
-        <span class="inline-flex items-center gap-2 text-sm font-medium text-[var(--color-text-muted)]"><Globe class="h-4 w-4" /> Cloudflare R2</span>
-        <span class="inline-flex items-center gap-2 text-sm font-medium text-[var(--color-text-muted)]"><Database class="h-4 w-4" /> Google GCS</span>
-        <span class="inline-flex items-center gap-2 text-sm font-medium text-[var(--color-text-muted)]"><Boxes class="h-4 w-4" /> Alibaba OSS</span>
-        <span class="inline-flex items-center gap-2 text-sm font-medium text-[var(--color-text-muted)]"><HardDrive class="h-4 w-4" /> Azure Blob</span>
-        <span class="inline-flex items-center gap-2 text-sm font-medium text-[var(--color-text-muted)]"><Server class="h-4 w-4" /> Local disk</span>
+    <!-- Providers -->
+    <section class="relative border-y border-white/5 bg-white/[0.02]">
+      <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-12 gap-y-4 px-6 py-9">
+        <span class="inline-flex items-center gap-2 text-sm font-medium text-white/50"><Cloud class="h-4 w-4 text-[#8b7deb]" /> AWS S3</span>
+        <span class="inline-flex items-center gap-2 text-sm font-medium text-white/50"><Globe class="h-4 w-4 text-[#8b7deb]" /> Cloudflare R2</span>
+        <span class="inline-flex items-center gap-2 text-sm font-medium text-white/50"><Database class="h-4 w-4 text-[#8b7deb]" /> Google GCS</span>
+        <span class="inline-flex items-center gap-2 text-sm font-medium text-white/50"><Boxes class="h-4 w-4 text-[#8b7deb]" /> Alibaba OSS</span>
+        <span class="inline-flex items-center gap-2 text-sm font-medium text-white/50"><HardDrive class="h-4 w-4 text-[#8b7deb]" /> Azure Blob</span>
+        <span class="inline-flex items-center gap-2 text-sm font-medium text-white/50"><Server class="h-4 w-4 text-[#8b7deb]" /> Local disk</span>
       </div>
     </section>
 
-    <!-- Features: asymmetric bento -->
-    <section id="features" class="mx-auto max-w-6xl px-6 py-20 md:py-24">
+    <!-- Platform bento -->
+    <section id="platform" class="relative mx-auto max-w-6xl px-6 py-24">
       <div class="grid gap-4 md:grid-cols-6">
-        <div class="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-raised)] p-7 md:col-span-4">
-          <span class="inline-flex h-10 w-10 items-center justify-center rounded-[var(--radius-sm)] bg-[var(--color-primary-subtle)]">
-            <KeyRound class="h-5 w-5 text-[var(--color-primary)]" />
+        <div class="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] p-7 backdrop-blur transition-colors hover:border-[#8b7deb]/40 md:col-span-4">
+          <div class="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-[#8b7deb]/10 blur-3xl" />
+          <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#8b7deb]/30 to-[#2a1a8f]/30">
+            <KeyRound class="h-5 w-5 text-[#c4b5fd]" />
           </span>
-          <h3 class="mt-5 text-xl font-bold tracking-tight text-[var(--color-text)]">Permissions that match your folders</h3>
-          <p class="mt-2 max-w-md text-sm leading-relaxed text-[var(--color-text-muted)]">
-            Five human roles, folder-level grants, and scoped application keys — all resolved in one
-            permission model across web, mobile, CLI and SDKs.
+          <h3 class="mt-5 text-xl font-bold tracking-tight">Permissions that match your folders</h3>
+          <p class="mt-2 max-w-md text-sm leading-relaxed text-white/60">
+            Five human roles, folder-level grants, and scoped application keys — one permission model
+            across web, mobile, CLI and SDKs.
           </p>
           <div class="mt-5 flex flex-wrap gap-2">
-            <span class="rounded-full bg-[var(--color-surface)] px-2.5 py-1 text-xs font-medium text-[var(--color-text-muted)]">Roles &amp; grants</span>
-            <span class="rounded-full bg-[var(--color-surface)] px-2.5 py-1 text-xs font-medium text-[var(--color-text-muted)]">Scoped access keys</span>
-            <span class="rounded-full bg-[var(--color-surface)] px-2.5 py-1 text-xs font-medium text-[var(--color-text-muted)]">Two-factor auth</span>
+            <span class="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-medium text-white/70">Roles &amp; grants</span>
+            <span class="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-medium text-white/70">Scoped access keys</span>
+            <span class="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-medium text-white/70">Two-factor auth</span>
           </div>
         </div>
 
-        <div class="flex flex-col justify-between rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-7 md:col-span-2">
+        <div class="flex flex-col justify-between rounded-2xl border border-white/10 bg-white/[0.03] p-7 backdrop-blur transition-colors hover:border-[#8b7deb]/40 md:col-span-2">
           <div>
-            <span class="inline-flex h-10 w-10 items-center justify-center rounded-[var(--radius-sm)] bg-[var(--color-primary-subtle)]">
-              <UploadCloud class="h-5 w-5 text-[var(--color-primary)]" />
+            <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#8b7deb]/30 to-[#2a1a8f]/30">
+              <Zap class="h-5 w-5 text-[#c4b5fd]" />
             </span>
-            <h3 class="mt-5 text-lg font-bold tracking-tight text-[var(--color-text)]">Bytes bypass you</h3>
-            <p class="mt-2 text-sm leading-relaxed text-[var(--color-text-muted)]">
+            <h3 class="mt-5 text-lg font-bold tracking-tight">Bytes bypass you</h3>
+            <p class="mt-2 text-sm leading-relaxed text-white/60">
               Presigned uploads go straight to the provider. Your server never touches the payload.
             </p>
           </div>
-          <a href="#pricing" class="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--color-primary)] hover:underline">
-            How it works <ArrowUpRight class="h-4 w-4" />
-          </a>
+          <p class="mt-5 font-mono text-xs text-white/40">PUT → provider, not server</p>
         </div>
 
-        <div class="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-raised)] p-7 md:col-span-2">
-          <span class="inline-flex h-10 w-10 items-center justify-center rounded-[var(--radius-sm)] bg-[var(--color-primary-subtle)]">
-            <ShieldCheck class="h-5 w-5 text-[var(--color-primary)]" />
+        <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-7 backdrop-blur transition-colors hover:border-[#8b7deb]/40 md:col-span-2">
+          <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#8b7deb]/30 to-[#2a1a8f]/30">
+            <ShieldCheck class="h-5 w-5 text-[#c4b5fd]" />
           </span>
-          <h3 class="mt-5 text-lg font-bold tracking-tight text-[var(--color-text)]">Credentials, encrypted</h3>
-          <p class="mt-2 text-sm leading-relaxed text-[var(--color-text-muted)]">
-            Provider keys are envelope-encrypted at rest with a key that never lives in the database.
+          <h3 class="mt-5 text-lg font-bold tracking-tight">Encrypted at rest</h3>
+          <p class="mt-2 text-sm leading-relaxed text-white/60">
+            Provider keys are envelope-encrypted; the key never lives in the database.
           </p>
         </div>
 
-        <div class="flex flex-col justify-between rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-7 md:col-span-4">
-          <div>
-            <span class="inline-flex h-10 w-10 items-center justify-center rounded-[var(--radius-sm)] bg-[var(--color-primary-subtle)]">
-              <Server class="h-5 w-5 text-[var(--color-primary)]" />
-            </span>
-            <h3 class="mt-5 text-xl font-bold tracking-tight text-[var(--color-text)]">One binary to deploy</h3>
-            <p class="mt-2 max-w-md text-sm leading-relaxed text-[var(--color-text-muted)]">
-              The API, the dashboard and short links ship as a single Go binary. From a fresh VPS to a
-              running install in about fifteen minutes.
+        <div class="flex flex-col justify-between rounded-2xl border border-white/10 bg-white/[0.03] p-7 backdrop-blur transition-colors hover:border-[#8b7deb]/40 md:col-span-4">
+          <div class="flex flex-wrap items-start justify-between gap-6">
+            <div>
+              <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#8b7deb]/30 to-[#2a1a8f]/30">
+                <Server class="h-5 w-5 text-[#c4b5fd]" />
+              </span>
+              <h3 class="mt-5 text-xl font-bold tracking-tight">One binary to deploy</h3>
+              <p class="mt-2 max-w-md text-sm leading-relaxed text-white/60">
+                The API, dashboard and short links ship as a single Go binary. From a fresh VPS to a
+                running install in about fifteen minutes.
+              </p>
+            </div>
+            <div class="grid grid-cols-3 gap-8">
+              <div class="text-center">
+                <p class="bg-gradient-to-r from-[#a78bfa] to-[#8b7deb] bg-clip-text text-3xl font-bold tracking-tight text-transparent">1</p>
+                <p class="mt-1 text-xs text-white/40">binary</p>
+              </div>
+              <div class="text-center">
+                <p class="bg-gradient-to-r from-[#a78bfa] to-[#8b7deb] bg-clip-text text-3xl font-bold tracking-tight text-transparent">5 GiB</p>
+                <p class="mt-1 text-xs text-white/40">max object</p>
+              </div>
+              <div class="text-center">
+                <p class="bg-gradient-to-r from-[#a78bfa] to-[#8b7deb] bg-clip-text text-3xl font-bold tracking-tight text-transparent">6</p>
+                <p class="mt-1 text-xs text-white/40">drivers</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Storage drivers -->
+    <section id="storage" class="border-y border-white/5 bg-white/[0.02]">
+      <div class="mx-auto max-w-6xl px-6 py-24">
+        <div class="grid gap-10 lg:grid-cols-5 lg:items-center">
+          <div class="lg:col-span-2">
+            <p class="inline-flex items-center gap-1.5 font-mono text-xs uppercase tracking-widest text-[#8b7deb]">
+              <Layers class="h-3.5 w-3.5" /> Storage layer
+            </p>
+            <h2 class="mt-4 text-2xl font-bold tracking-tight md:text-3xl">Your storage, your rules.</h2>
+            <p class="mt-3 text-base leading-relaxed text-white/60">
+              Every driver implements one interface — presigning, multipart, streaming, health — so
+              switching providers is a config change, not a rewrite.
             </p>
           </div>
-          <div class="mt-5 grid grid-cols-3 gap-3 border-t border-[var(--color-border)] pt-5">
-            <div>
-              <p class="text-2xl font-bold tracking-tight text-[var(--color-text)]">1</p>
-              <p class="mt-1 text-xs text-[var(--color-text-muted)]">binary</p>
+          <div class="grid gap-3 sm:grid-cols-2 lg:col-span-3">
+            <div class="rounded-xl border border-white/10 bg-[#0b0a16] p-4">
+              <div class="flex items-center gap-2.5">
+                <Cloud class="h-4 w-4 text-[#8b7deb]" />
+                <p class="text-sm font-semibold">S3 &amp; R2</p>
+              </div>
+              <p class="mt-1.5 text-xs leading-relaxed text-white/50">AWS S3, Cloudflare R2, MinIO, Backblaze, Spaces, Wasabi</p>
             </div>
-            <div>
-              <p class="text-2xl font-bold tracking-tight text-[var(--color-text)]">5 GiB</p>
-              <p class="mt-1 text-xs text-[var(--color-text-muted)]">max object</p>
+            <div class="rounded-xl border border-white/10 bg-[#0b0a16] p-4">
+              <div class="flex items-center gap-2.5">
+                <Database class="h-4 w-4 text-[#8b7deb]" />
+                <p class="text-sm font-semibold">Google Cloud Storage</p>
+              </div>
+              <p class="mt-1.5 text-xs leading-relaxed text-white/50">Service-account signing, IAM-aware</p>
             </div>
-            <div>
-              <p class="text-2xl font-bold tracking-tight text-[var(--color-text)]">6</p>
-              <p class="mt-1 text-xs text-[var(--color-text-muted)]">drivers</p>
+            <div class="rounded-xl border border-white/10 bg-[#0b0a16] p-4">
+              <div class="flex items-center gap-2.5">
+                <Boxes class="h-4 w-4 text-[#8b7deb]" />
+                <p class="text-sm font-semibold">Alibaba OSS &amp; Azure</p>
+              </div>
+              <p class="mt-1.5 text-xs leading-relaxed text-white/50">First-party SDKs, native signature schemes</p>
+            </div>
+            <div class="rounded-xl border border-white/10 bg-[#0b0a16] p-4">
+              <div class="flex items-center gap-2.5">
+                <Server class="h-4 w-4 text-[#8b7deb]" />
+                <p class="text-sm font-semibold">Local disk</p>
+              </div>
+              <p class="mt-1.5 text-xs leading-relaxed text-white/50">Plain VPS volume, HMAC-signed presigned URLs</p>
             </div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Drivers -->
-    <section id="drivers" class="border-y border-[var(--color-border)] bg-[var(--color-surface)]">
-      <div class="mx-auto max-w-6xl px-6 py-16 md:py-20">
-        <div class="max-w-2xl">
-          <h2 class="text-2xl font-bold tracking-tight text-[var(--color-text)] md:text-3xl">Your storage, your rules.</h2>
-          <p class="mt-3 text-base leading-relaxed text-[var(--color-text-muted)]">
-            Every driver implements one interface — presigning, multipart, streaming and health checks —
-            so switching providers is a configuration change, not a rewrite.
-          </p>
+    <!-- How it works -->
+    <section id="selfhost" class="mx-auto max-w-6xl px-6 py-24">
+      <div class="grid gap-8 md:grid-cols-3">
+        <div class="relative rounded-2xl border border-white/10 bg-white/[0.02] p-7">
+          <span class="bg-gradient-to-r from-[#a78bfa] to-[#8b7deb] bg-clip-text font-mono text-sm font-bold text-transparent">01</span>
+          <h3 class="mt-4 text-lg font-semibold tracking-tight">Run one binary</h3>
+          <p class="mt-2 text-sm leading-relaxed text-white/60">A single Go server embeds the dashboard, API and worker. systemd keeps it alive.</p>
         </div>
-        <div class="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <div class="flex items-start gap-3 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-raised)] p-4">
-            <Cloud class="mt-0.5 h-5 w-5 shrink-0 text-[var(--color-primary)]" />
-            <div><p class="text-sm font-semibold text-[var(--color-text)]">S3 &amp; R2</p><p class="mt-1 text-xs leading-relaxed text-[var(--color-text-muted)]">AWS S3, Cloudflare R2, MinIO, Backblaze, Spaces, Wasabi</p></div>
-          </div>
-          <div class="flex items-start gap-3 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-raised)] p-4">
-            <Database class="mt-0.5 h-5 w-5 shrink-0 text-[var(--color-primary)]" />
-            <div><p class="text-sm font-semibold text-[var(--color-text)]">Google Cloud Storage</p><p class="mt-1 text-xs leading-relaxed text-[var(--color-text-muted)]">Service-account signing, IAM-aware</p></div>
-          </div>
-          <div class="flex items-start gap-3 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-raised)] p-4">
-            <Boxes class="mt-0.5 h-5 w-5 shrink-0 text-[var(--color-primary)]" />
-            <div><p class="text-sm font-semibold text-[var(--color-text)]">Alibaba OSS &amp; Azure Blob</p><p class="mt-1 text-xs leading-relaxed text-[var(--color-text-muted)]">First-party SDKs, native signature schemes</p></div>
-          </div>
-          <div class="flex items-start gap-3 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-raised)] p-4">
-            <Server class="mt-0.5 h-5 w-5 shrink-0 text-[var(--color-primary)]" />
-            <div><p class="text-sm font-semibold text-[var(--color-text)]">Local disk</p><p class="mt-1 text-xs leading-relaxed text-[var(--color-text-muted)]">Plain VPS volume, HMAC-signed presigned URLs</p></div>
-          </div>
-          <div class="flex items-start gap-3 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-raised)] p-4">
-            <KeyRound class="mt-0.5 h-5 w-5 shrink-0 text-[var(--color-primary)]" />
-            <div><p class="text-sm font-semibold text-[var(--color-text)]">Application keys</p><p class="mt-1 text-xs leading-relaxed text-[var(--color-text-muted)]">Scoped to folders and permissions, revocable</p></div>
-          </div>
-          <div class="flex items-start gap-3 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-raised)] p-4">
-            <Globe class="mt-0.5 h-5 w-5 shrink-0 text-[var(--color-primary)]" />
-            <div><p class="text-sm font-semibold text-[var(--color-text)]">Short links &amp; shares</p><p class="mt-1 text-xs leading-relaxed text-[var(--color-text-muted)]">Signed links, short URLs, revocable anytime</p></div>
-          </div>
+        <div class="relative rounded-2xl border border-white/10 bg-white/[0.02] p-7">
+          <span class="bg-gradient-to-r from-[#a78bfa] to-[#8b7deb] bg-clip-text font-mono text-sm font-bold text-transparent">02</span>
+          <h3 class="mt-4 text-lg font-semibold tracking-tight">Connect a provider</h3>
+          <p class="mt-2 text-sm leading-relaxed text-white/60">Register any storage backend once. Credentials are encrypted before they touch the database.</p>
         </div>
-      </div>
-    </section>
-
-    <!-- How it works (3 steps) -->
-    <section id="pricing" class="mx-auto max-w-6xl px-6 py-20 md:py-24">
-      <div class="max-w-2xl">
-        <h2 class="text-2xl font-bold tracking-tight text-[var(--color-text)] md:text-3xl">From VPS to first file in minutes.</h2>
-      </div>
-      <div class="mt-10 grid gap-8 md:grid-cols-3">
-        <div class="relative">
-          <p class="text-sm font-bold text-[var(--color-primary)]">01</p>
-          <h3 class="mt-3 text-lg font-semibold tracking-tight text-[var(--color-text)]">Run one binary</h3>
-          <p class="mt-2 text-sm leading-relaxed text-[var(--color-text-muted)]">A single Go server embeds the dashboard, API and worker. systemd keeps it alive.</p>
-        </div>
-        <div class="relative">
-          <p class="text-sm font-bold text-[var(--color-primary)]">02</p>
-          <h3 class="mt-3 text-lg font-semibold tracking-tight text-[var(--color-text)]">Connect a provider</h3>
-          <p class="mt-2 text-sm leading-relaxed text-[var(--color-text-muted)]">Register any storage backend once. Credentials are encrypted before they touch the database.</p>
-        </div>
-        <div class="relative">
-          <p class="text-sm font-bold text-[var(--color-primary)]">03</p>
-          <h3 class="mt-3 text-lg font-semibold tracking-tight text-[var(--color-text)]">Invite your team</h3>
-          <p class="mt-2 text-sm leading-relaxed text-[var(--color-text-muted)]">Real folders with per-folder grants, plus keys for every integration.</p>
+        <div class="relative rounded-2xl border border-white/10 bg-white/[0.02] p-7">
+          <span class="bg-gradient-to-r from-[#a78bfa] to-[#8b7deb] bg-clip-text font-mono text-sm font-bold text-transparent">03</span>
+          <h3 class="mt-4 text-lg font-semibold tracking-tight">Invite your team</h3>
+          <p class="mt-2 text-sm leading-relaxed text-white/60">Real folders with per-folder grants, plus keys for every integration.</p>
         </div>
       </div>
     </section>
 
     <!-- Security -->
-    <section id="security" class="border-y border-[var(--color-border)] bg-[var(--color-surface)]">
-      <div class="mx-auto max-w-6xl px-6 py-16 md:py-20">
+    <section id="security" class="border-y border-white/5 bg-white/[0.02]">
+      <div class="mx-auto max-w-6xl px-6 py-24">
         <div class="grid gap-10 md:grid-cols-2 md:items-center">
           <div>
-            <h2 class="text-2xl font-bold tracking-tight text-[var(--color-text)] md:text-3xl">Built for the trust self-hosting demands.</h2>
-            <p class="mt-3 text-base leading-relaxed text-[var(--color-text-muted)]">
+            <p class="inline-flex items-center gap-1.5 font-mono text-xs uppercase tracking-widest text-[#8b7deb]">
+              <ShieldCheck class="h-3.5 w-3.5" /> Security
+            </p>
+            <h2 class="mt-4 text-2xl font-bold tracking-tight md:text-3xl">Built for the trust self-hosting demands.</h2>
+            <p class="mt-3 text-base leading-relaxed text-white/60">
               Every decision in the data path is auditable — and every secret is encrypted before storage.
             </p>
-            <a href="#features" class="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--color-primary)] hover:underline">
-              Read how it works <ArrowUpRight class="h-4 w-4" />
-            </a>
           </div>
-          <ul class="divide-y divide-[var(--color-border)] border-y border-[var(--color-border)]">
-            <li class="flex items-start gap-3 py-4">
-              <Lock class="mt-0.5 h-5 w-5 shrink-0 text-[var(--color-primary)]" />
-              <div><p class="text-sm font-semibold text-[var(--color-text)]">Envelope encryption at rest</p><p class="mt-1 text-xs leading-relaxed text-[var(--color-text-muted)]">A database dump cannot decrypt provider credentials.</p></div>
+          <ul class="divide-y divide-white/5 rounded-2xl border border-white/10 bg-[#0b0a16]">
+            <li class="flex items-start gap-3 px-6 py-5">
+              <Lock class="mt-0.5 h-5 w-5 shrink-0 text-[#8b7deb]" />
+              <div><p class="text-sm font-semibold">Envelope encryption at rest</p><p class="mt-1 text-xs leading-relaxed text-white/50">A database dump cannot decrypt provider credentials.</p></div>
             </li>
-            <li class="flex items-start gap-3 py-4">
-              <KeyRound class="mt-0.5 h-5 w-5 shrink-0 text-[var(--color-primary)]" />
-              <div><p class="text-sm font-semibold text-[var(--color-text)]">Two-factor authentication</p><p class="mt-1 text-xs leading-relaxed text-[var(--color-text-muted)]">TOTP with single-use backup codes, on every human login.</p></div>
+            <li class="flex items-start gap-3 px-6 py-5">
+              <KeyRound class="mt-0.5 h-5 w-5 shrink-0 text-[#8b7deb]" />
+              <div><p class="text-sm font-semibold">Two-factor authentication</p><p class="mt-1 text-xs leading-relaxed text-white/50">TOTP with single-use backup codes, on every human login.</p></div>
             </li>
-            <li class="flex items-start gap-3 py-4">
-              <ShieldCheck class="mt-0.5 h-5 w-5 shrink-0 text-[var(--color-primary)]" />
-              <div><p class="text-sm font-semibold text-[var(--color-text)]">Full audit log</p><p class="mt-1 text-xs leading-relaxed text-[var(--color-text-muted)]">Every access-key and grant action is queryable per tenant.</p></div>
+            <li class="flex items-start gap-3 px-6 py-5">
+              <ShieldCheck class="mt-0.5 h-5 w-5 shrink-0 text-[#8b7deb]" />
+              <div><p class="text-sm font-semibold">Full audit log</p><p class="mt-1 text-xs leading-relaxed text-white/50">Every access-key and grant action is queryable per tenant.</p></div>
             </li>
           </ul>
         </div>
@@ -273,34 +307,38 @@ function primaryCta() {
     </section>
 
     <!-- CTA -->
-    <section class="mx-auto max-w-6xl px-6 py-20 md:py-24">
-      <div class="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-primary-subtle)] px-8 py-14 text-center">
-        <h2 class="mx-auto max-w-md text-2xl font-bold tracking-tight text-[var(--color-text)] md:text-3xl">
-          {{ needsSetup ? 'Set up your instance.' : 'Ready when you are.' }}
-        </h2>
-        <p class="mx-auto mt-3 max-w-md text-sm leading-relaxed text-[var(--color-text-muted)]">
-          {{ needsSetup ? 'Create your admin account and first tenant in about a minute.' : 'Sign in to manage your folders, keys and shares.' }}
-        </p>
-        <button
-          class="mt-7 inline-flex h-12 items-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-primary)] px-6 text-sm font-semibold text-[var(--color-on-primary)] shadow-[var(--shadow-md)] transition-opacity hover:opacity-90"
-          @click="primaryCta"
-        >
-          {{ needsSetup ? 'Get started' : 'Sign in' }}
-          <ArrowRight class="h-4 w-4" />
-        </button>
+    <section class="relative mx-auto max-w-6xl px-6 py-24">
+      <div class="relative overflow-hidden rounded-2xl border border-[#8b7deb]/20 bg-gradient-to-br from-[#1e146b]/40 via-[#0b0a16] to-[#0b0a16] px-8 py-16 text-center">
+        <div class="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-[#8b7deb]/15 blur-3xl" />
+        <div class="pointer-events-none absolute -bottom-24 -right-24 h-72 w-72 rounded-full bg-[#2a1a8f]/40 blur-3xl" />
+        <div class="relative">
+          <h2 class="mx-auto max-w-md text-2xl font-bold tracking-tight md:text-3xl">
+            {{ needsSetup ? 'Set up your instance.' : 'Ready when you are.' }}
+          </h2>
+          <p class="mx-auto mt-3 max-w-md text-sm leading-relaxed text-white/60">
+            {{ needsSetup ? 'Create your admin account and first tenant in about a minute.' : 'Sign in to manage your folders, keys and shares.' }}
+          </p>
+          <button
+            class="group mt-8 inline-flex h-12 items-center gap-2 rounded-lg bg-gradient-to-r from-[#8b7deb] to-[#4c3fd4] px-7 text-sm font-semibold text-white shadow-[0_0_32px_rgba(139,125,235,0.4)] transition-all hover:shadow-[0_0_48px_rgba(139,125,235,0.6)]"
+            @click="primaryCta"
+          >
+            {{ needsSetup ? 'Get started' : 'Sign in' }}
+            <ArrowRight class="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+          </button>
+        </div>
       </div>
     </section>
 
     <!-- Footer -->
-    <footer class="border-t border-[var(--color-border)]">
+    <footer class="border-t border-white/5">
       <div class="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 py-8 md:flex-row">
         <div class="flex items-center gap-2.5">
-          <span class="flex h-7 w-7 items-center justify-center rounded-[var(--radius-sm)] bg-[var(--color-primary)]">
-            <Boxes class="h-3.5 w-3.5 text-[var(--color-on-primary)]" />
+          <span class="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-[#8b7deb] to-[#2a1a8f]">
+            <Boxes class="h-3.5 w-3.5 text-white" />
           </span>
-          <span class="text-sm font-semibold text-[var(--color-text)]">Bloberry</span>
+          <span class="text-sm font-semibold">Bloberry</span>
         </div>
-        <p class="text-xs text-[var(--color-text-muted)]">Storage-agnostic object service — self-hosted, single binary.</p>
+        <p class="text-xs text-white/40">Storage-agnostic object service — self-hosted, single binary.</p>
       </div>
     </footer>
   </div>

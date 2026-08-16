@@ -229,14 +229,38 @@ var publicPaths = map[string]bool{
 	"POST /auth/login/verify-totp":   true,
 }
 
+// apiPrefixes are the top-level path prefixes the JSON API owns. Anything else
+// (the SPA shell, static assets, deep links like /app/files) is served without
+// the API auth gate — the dashboard's own router decides what's protected.
+var apiPrefixes = []string{
+	"/v1/", "/auth/", "/users/", "/tenants/", "/folders/", "/objects/",
+	"/shares/", "/keys/", "/applications/", "/grants/", "/archives/",
+	"/jobs/", "/transfers/", "/audit", "/usage/", "/admin/", "/backends",
+}
+
+func isAPIPath(path string) bool {
+	for _, p := range apiPrefixes {
+		if strings.HasPrefix(path, p) {
+			return true
+		}
+	}
+	return false
+}
+
 func authGate(mw *httpx.Middleware, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
 		key := r.Method + " " + path
-		// The embedded dashboard + its static assets are public; API paths are
-		// gated. Everything under /assets or / is SPA content, not the API.
-		if publicPaths[key] || (r.Method == "GET" && strings.HasPrefix(path, "/s/")) ||
-			(r.Method == "GET" && (path == "/" || strings.HasPrefix(path, "/assets/") || strings.HasPrefix(path, "/favicon"))) {
+		// Public endpoints pass through (auth + short links + health/setup).
+		if publicPaths[key] || (r.Method == "GET" && strings.HasPrefix(path, "/s/")) {
+			next.ServeHTTP(w, r)
+			return
+		}
+		// Only API paths require authentication. Everything else — the SPA
+		// shell, /assets, and deep links like /app/files — is served as-is so
+		// direct navigation never hits a 401 JSON; the dashboard router handles
+		// session gating client-side.
+		if !isAPIPath(path) {
 			next.ServeHTTP(w, r)
 			return
 		}

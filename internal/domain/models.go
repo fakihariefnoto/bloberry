@@ -88,6 +88,7 @@ type Application struct {
 type AccessKey struct {
 	ID             string     `bson:"_id" json:"id"`
 	TenantID       string     `bson:"tenant_id" json:"tenant_id"`
+	Name           string     `bson:"name" json:"name"`
 	ApplicationID  *string    `bson:"application_id,omitempty" json:"application_id,omitempty"`
 	UserID         *string    `bson:"user_id,omitempty" json:"user_id,omitempty"`
 	Prefix         string     `bson:"prefix" json:"prefix"`

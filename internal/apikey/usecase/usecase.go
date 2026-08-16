@@ -45,14 +45,14 @@ func (u *usecase) Delete(ctx context.Context, tenantID, id string) error {
 	return u.repo.DeleteApplication(ctx, tenantID, id)
 }
 
-func (u *usecase) CreateKey(ctx context.Context, tenantID, applicationID string, scope, perms []string, expiresAt *time.Time) (*apikey.CreatedKey, error) {
+func (u *usecase) CreateKey(ctx context.Context, tenantID, applicationID, name string, scope, perms []string, expiresAt *time.Time) (*apikey.CreatedKey, error) {
 	secret := "blob_live_" + crypto.NewToken(24)
 	hash, err := crypto.HashPassword(secret)
 	if err != nil {
 		return nil, err
 	}
 	k := &domain.AccessKey{
-		TenantID: tenantID, ApplicationID: &applicationID,
+		TenantID: tenantID, Name: name, ApplicationID: &applicationID,
 		Prefix: "blob_live_", SecretHash: hash,
 		LastFour: lastFour(secret),
 		ScopeFolderIDs: scope, Permissions: perms,
@@ -67,14 +67,14 @@ func (u *usecase) CreateKey(ctx context.Context, tenantID, applicationID string,
 // CreateTenantKey creates a key directly on the tenant (not tied to an
 // application). It authenticates as a tenant-scoped principal and can only act
 // within the tenant's folder scope + permissions.
-func (u *usecase) CreateTenantKey(ctx context.Context, tenantID string, scope, perms []string, expiresAt *time.Time) (*apikey.CreatedKey, error) {
+func (u *usecase) CreateTenantKey(ctx context.Context, tenantID, name string, scope, perms []string, expiresAt *time.Time) (*apikey.CreatedKey, error) {
 	secret := "blob_live_" + crypto.NewToken(24)
 	hash, err := crypto.HashPassword(secret)
 	if err != nil {
 		return nil, err
 	}
 	k := &domain.AccessKey{
-		TenantID: tenantID, Prefix: "blob_live_", SecretHash: hash,
+		TenantID: tenantID, Name: name, Prefix: "blob_live_", SecretHash: hash,
 		LastFour: lastFour(secret),
 		ScopeFolderIDs: scope, Permissions: perms,
 		ExpiresAt: expiresAt,
@@ -89,26 +89,59 @@ func (u *usecase) ListKeys(ctx context.Context, tenantID, applicationID string) 
 	return u.repo.ListKeys(ctx, tenantID, applicationID)
 }
 
-// ListAllKeys enriches each key with its application's name.
+// ListAllKeys enriches each key with its application's + tenant's name.
 func (u *usecase) ListAllKeys(ctx context.Context, tenantID string) ([]apikey.KeyWithApp, error) {
 	keys, err := u.repo.ListAllKeys(ctx, tenantID)
 	if err != nil {
 		return nil, err
 	}
-	apps, err := u.repo.ListApplications(ctx, tenantID)
+	return u.enrich(ctx, keys)
+}
+
+// ListKeysPage returns keys for the API keys page: all tenants for a platform
+// admin, or the caller's own tenant otherwise.
+func (u *usecase) ListKeysPage(ctx context.Context, tenantID string, isPlatformAdmin bool) ([]apikey.KeyWithApp, error) {
+	var keys []domain.AccessKey
+	var err error
+	if isPlatformAdmin {
+		keys, err = u.repo.ListKeysForAdmin(ctx)
+	} else {
+		keys, err = u.repo.ListAllKeys(ctx, tenantID)
+	}
 	if err != nil {
 		return nil, err
 	}
-	nameByID := map[string]string{}
-	for _, a := range apps {
-		nameByID[a.ID] = a.Name
+	return u.enrich(ctx, keys)
+}
+
+func (u *usecase) enrich(ctx context.Context, keys []domain.AccessKey) ([]apikey.KeyWithApp, error) {
+	appNames := map[string]string{}
+	tenantNames := map[string]string{}
+	appIDs := map[string]struct{}{}
+	tenantIDs := map[string]struct{}{}
+	for _, k := range keys {
+		if k.ApplicationID != nil {
+			appIDs[*k.ApplicationID] = struct{}{}
+		}
+		tenantIDs[k.TenantID] = struct{}{}
+	}
+	for id := range appIDs {
+		if a, err := u.repo.GetApplication(ctx, "", id); err == nil {
+			appNames[id] = a.Name
+		}
+	}
+	for id := range tenantIDs {
+		if t, err := u.repo.GetTenant(ctx, id); err == nil {
+			tenantNames[id] = t.Name
+		}
 	}
 	out := make([]apikey.KeyWithApp, 0, len(keys))
 	for _, k := range keys {
 		wk := apikey.KeyWithApp{AccessKey: k}
 		if k.ApplicationID != nil {
-			wk.ApplicationName = nameByID[*k.ApplicationID]
+			wk.ApplicationName = appNames[*k.ApplicationID]
 		}
+		wk.TenantName = tenantNames[k.TenantID]
 		out = append(out, wk)
 	}
 	return out, nil

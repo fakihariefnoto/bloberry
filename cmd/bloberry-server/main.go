@@ -229,16 +229,20 @@ var publicPaths = map[string]bool{
 	"POST /auth/login/verify-totp":   true,
 }
 
-// apiPrefixes are the top-level path prefixes the JSON API owns. Anything else
-// (the SPA shell, static assets, deep links like /app/files) is served without
-// the API auth gate — the dashboard's own router decides what's protected.
+// apiPrefixes are the top-level path prefixes the JSON API owns. Entries with a
+// trailing slash are matched as prefixes; entries without one are matched
+// exactly at the root (e.g. /tenants, /folders, /objects — collection roots).
 var apiPrefixes = []string{
-	"/v1/", "/auth/", "/users/", "/tenants/", "/folders/", "/objects/",
-	"/shares/", "/keys/", "/applications/", "/grants/", "/archives/",
-	"/jobs/", "/transfers/", "/audit", "/usage/", "/admin/", "/backends",
+	"/v1/", "/auth/", "/users/", "/tenants/", "/tenants", "/folders/", "/folders",
+	"/objects/", "/objects", "/shares/", "/shares", "/keys", "/applications",
+	"/applications/", "/grants/", "/archives", "/jobs", "/transfers", "/audit",
+	"/usage/", "/admin/", "/backends", "/backends/",
 }
 
 func isAPIPath(path string) bool {
+	if path == "/keys" || path == "/transfers" || path == "/jobs" {
+		return true
+	}
 	for _, p := range apiPrefixes {
 		if strings.HasPrefix(path, p) {
 			return true

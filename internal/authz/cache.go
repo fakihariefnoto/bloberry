@@ -75,18 +75,28 @@ type memberRepo interface {
 }
 
 func (l *Loader) ResolveUser(ctx context.Context, userID string) (*Principal, error) {
-	if p, ok := l.Cache.Get(ctx, PrincipalUser, userID); ok {
-		return p, nil
-	}
+	// The platform-admin flag is not cached-stable: a user promoted after their
+	// principal was cached must see the promotion immediately. Always read the
+	// user doc (single indexed lookup) and refresh the cached principal when
+	// the flag differs.
 	u, err := l.Users.GetByID(ctx, userID)
 	if err != nil {
 		return nil, err
+	}
+	isAdmin := u.PlatformRole != nil && *u.PlatformRole == "platform_admin"
+	if p, ok := l.Cache.Get(ctx, PrincipalUser, userID); ok {
+		if p.IsPlatformAdmin == isAdmin {
+			return p, nil
+		}
+		p.IsPlatformAdmin = isAdmin
+		_ = l.Cache.Set(ctx, p)
+		return p, nil
 	}
 	members, err := l.Member.ListMembershipsByUser(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
-	p := &Principal{Type: PrincipalUser, ID: userID, IsPlatformAdmin: u.PlatformRole != nil && *u.PlatformRole == "platform_admin"}
+	p := &Principal{Type: PrincipalUser, ID: userID, IsPlatformAdmin: isAdmin}
 	if len(members) > 0 {
 		m := members[0]
 		p.TenantID = m.TenantID

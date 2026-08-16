@@ -1044,6 +1044,8 @@ func (h *Handler) CreateTenantKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
+		TenantID       string   `json:"tenant_id"`
+		Name           string   `json:"name"`
 		ScopeFolderIDs []string `json:"scope_folder_ids"`
 		Permissions    []string `json:"permissions"`
 		ExpiresAt      *string  `json:"expires_at"`
@@ -1052,13 +1054,22 @@ func (h *Handler) CreateTenantKey(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, "bad_request")
 		return
 	}
+	// Platform admin can create keys for any tenant; members only their own.
+	targetTenant := p.TenantID
+	if req.TenantID != "" {
+		if !p.IsPlatformAdmin {
+			httpx.Error(w, http.StatusForbidden, "forbidden")
+			return
+		}
+		targetTenant = req.TenantID
+	}
 	var exp *time.Time
 	if req.ExpiresAt != nil {
 		if t, err := time.Parse(time.RFC3339, *req.ExpiresAt); err == nil {
 			exp = &t
 		}
 	}
-	key, err := h.APIKeys.CreateTenantKey(r.Context(), p.TenantID, req.ScopeFolderIDs, req.Permissions, exp)
+	key, err := h.APIKeys.CreateTenantKey(r.Context(), targetTenant, req.Name, req.ScopeFolderIDs, req.Permissions, exp)
 	if err != nil {
 		httpx.WriteError(w, err)
 		return
@@ -1072,7 +1083,7 @@ func (h *Handler) ListAllKeys(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
-	keys, err := h.APIKeys.ListAllKeys(r.Context(), p.TenantID)
+	keys, err := h.APIKeys.ListKeysPage(r.Context(), p.TenantID, p.IsPlatformAdmin)
 	if err != nil {
 		httpx.WriteError(w, err)
 		return
@@ -1143,6 +1154,7 @@ func (h *Handler) ListAccessKeys(w http.ResponseWriter, r *http.Request, applica
 func (h *Handler) CreateAccessKey(w http.ResponseWriter, r *http.Request, applicationId server.ApplicationId) {
 	p := principalOf(r)
 	var req struct {
+		Name           string   `json:"name"`
 		ScopeFolderIDs []string `json:"scope_folder_ids"`
 		Permissions    []string `json:"permissions"`
 		ExpiresAt      *string  `json:"expires_at"`
@@ -1158,7 +1170,7 @@ func (h *Handler) CreateAccessKey(w http.ResponseWriter, r *http.Request, applic
 			exp = &t
 		}
 	}
-	key, err := h.APIKeys.CreateKey(r.Context(), p.TenantID, string(applicationId), req.ScopeFolderIDs, req.Permissions, exp)
+	key, err := h.APIKeys.CreateKey(r.Context(), p.TenantID, string(applicationId), req.Name, req.ScopeFolderIDs, req.Permissions, exp)
 	if err != nil {
 		httpx.WriteError(w, err)
 		return

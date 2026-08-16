@@ -453,7 +453,7 @@ func (h *Handler) CreateTenant(w http.ResponseWriter, r *http.Request) {
 		Slug             string `json:"slug"`
 		QuotaBytes       int64  `json:"quota_bytes"`
 		QuotaObjects     int64  `json:"quota_objects"`
-		DefaultBackendID string `json:"default_backend_id"`
+		DefaultBackendID string `json:"default_storage_id"`
 	}
 	if err := decodeBody(r, &req); err != nil {
 		httpx.Error(w, http.StatusBadRequest, "bad_request")
@@ -481,7 +481,7 @@ func (h *Handler) UpdateTenant(w http.ResponseWriter, r *http.Request, tenantId 
 		Name             *string `json:"name"`
 		QuotaBytes       *int64  `json:"quota_bytes"`
 		QuotaObjects     *int64  `json:"quota_objects"`
-		DefaultBackendID *string `json:"default_backend_id"`
+		DefaultBackendID *string `json:"default_storage_id"`
 		Status           *string `json:"status"`
 	}
 	if err := decodeBody(r, &req); err != nil {

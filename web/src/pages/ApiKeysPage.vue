@@ -223,7 +223,7 @@ function copySecret() {
           <tr class="bg-[var(--color-surface)] text-left text-xs font-medium text-[var(--color-text-muted)]">
             <th class="px-3 py-2">Key</th>
             <th class="px-3 py-2">Name</th>
-            <th v-if="isAdmin" class="px-3 py-2">Tenant</th>
+            <th class="px-3 py-2">Tenant</th>
             <th class="px-3 py-2">Type</th>
             <th class="px-3 py-2">Permissions</th>
             <th class="px-3 py-2">State</th>
@@ -234,7 +234,7 @@ function copySecret() {
           <tr v-for="k in keys" :key="k.id" class="border-t border-[var(--color-border)]">
             <td class="px-3 py-2.5 font-mono text-xs text-[var(--color-text)]">{{ k.prefix }}••••{{ k.last_four }}</td>
             <td class="px-3 py-2.5 text-[var(--color-text)]">{{ k.name || '—' }}</td>
-            <td v-if="isAdmin" class="px-3 py-2.5 text-[var(--color-text-muted)]">{{ k.tenant_name || k.tenant_id.slice(0, 8) }}</td>
+            <td class="px-3 py-2.5 text-[var(--color-text-muted)]">{{ k.tenant_name || k.tenant_id.slice(0, 8) }}</td>
             <td class="px-3 py-2.5">
               <span v-if="k.application_name" class="inline-flex items-center gap-1.5 text-[var(--color-text-muted)]">
                 <Layers class="h-3.5 w-3.5" /> {{ k.application_name }}
@@ -253,7 +253,7 @@ function copySecret() {
             </td>
           </tr>
           <tr v-if="!loading && !keys.length">
-            <td :colspan="isAdmin ? 7 : 6" class="px-4 py-12 text-center">
+            <td colspan="7" class="px-4 py-12 text-center">
               <KeyRound class="mx-auto h-8 w-8 text-[var(--color-text-muted)]" />
               <p class="mt-3 text-sm font-medium text-[var(--color-text)]">No API keys yet</p>
               <p class="mt-1 text-xs text-[var(--color-text-muted)]">Create one to authenticate your SDK clients.</p>

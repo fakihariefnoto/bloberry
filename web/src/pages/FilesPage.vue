@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Folder, FileText, ChevronRight, Upload, RefreshCw, Globe, HardDrive, Trash2 } from 'lucide-vue-next'
+import { Folder, FileText, ChevronRight, Upload, RefreshCw, Globe, HardDrive, Trash2, X } from 'lucide-vue-next'
 import { api } from '../lib/api'
 import { useTenantStore } from '../stores/tenant'
 import AppButton from '../components/ui/AppButton.vue'
@@ -151,6 +151,7 @@ const conflictFile = ref<File | null>(null)
 
 async function uploadFiles(files: File[], overwrite = false) {
   uploading.value = true
+  uploadPanelVisible.value = true
   for (const f of files) {
     const item: { name: string; progress: number; state: string; error?: string } = { name: f.name, progress: 0, state: 'pending' }
     uploads.value.push(item)
@@ -195,7 +196,13 @@ async function uploadFiles(files: File[], overwrite = false) {
   }
   uploading.value = false
   load()
+  if (uploads.value.every((u) => u.state === 'done' || u.state === 'failed')) {
+    setTimeout(() => { uploadPanelVisible.value = false }, 1500)
+  }
 }
+
+// Upload queue panel — visible while uploading; auto-closes after all done.
+const uploadPanelVisible = ref(false)
 
 // Upload modal state — user picks drag-and-drop OR a file picker.
 const showUpload = ref(false)
@@ -472,10 +479,15 @@ async function doDeleteFolder() {
     </AppModal>
 
     <!-- Upload queue -->
-    <div v-if="uploads.length" class="fixed bottom-4 right-4 w-80 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-raised)] p-4 shadow-[var(--shadow-md)]">
-      <p class="text-sm font-semibold text-[var(--color-text)]">
-        {{ uploads.filter((u) => u.state === 'pending' || u.state === 'uploading').length }} uploading · {{ uploads.filter((u) => u.state === 'done').length }} done
-      </p>
+    <div v-if="uploadPanelVisible && uploads.length" class="fixed bottom-4 right-4 w-80 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-raised)] p-4 shadow-[var(--shadow-md)]">
+      <div class="flex items-center justify-between gap-2">
+        <p class="text-sm font-semibold text-[var(--color-text)]">
+          {{ uploads.filter((u) => u.state === 'pending' || u.state === 'uploading').length }} uploading · {{ uploads.filter((u) => u.state === 'done').length }} done
+        </p>
+        <button class="text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)]" title="Dismiss" @click="uploadPanelVisible = false">
+          <X class="h-4 w-4" />
+        </button>
+      </div>
       <div class="mt-3 flex flex-col gap-2">
         <div v-for="u in uploads" :key="u.name" class="flex items-center justify-between gap-2 text-xs">
           <span class="truncate text-[var(--color-text)]">{{ u.name }}</span>

@@ -34,6 +34,8 @@ const tenants = ref<TenantRec[]>([])
 const loading = ref(false)
 
 const showCreate = ref(false)
+const showRevoke = ref(false)
+const revokeTarget = ref('')
 const keyType = ref<'tenant' | 'app'>('tenant')
 const keyName = ref('')
 const tenantId = ref('')
@@ -92,12 +94,22 @@ async function createKey() {
   } catch (e) { error.value = (e as Error).message } finally { creating.value = false }
 }
 
-async function revoke(id: string) {
-  if (!window.confirm('Revoke this key? Existing integrations using it will stop working.')) return
+function askRevoke(id: string) {
+  revokeTarget.value = id
+  showRevoke.value = true
+}
+
+async function doRevoke() {
+  if (!revokeTarget.value) return
+  showRevoke.value = false
   try {
-    await api.delete(`/keys/${id}`)
+    await api.delete(`/keys/${revokeTarget.value}`)
+    revokeTarget.value = ''
     load()
-  } catch (e) { alert((e as Error).message) }
+  } catch (e) {
+    revokeTarget.value = ''
+    error.value = (e as Error).message
+  }
 }
 
 function copySecret() {
@@ -216,6 +228,14 @@ function copySecret() {
       </div>
     </AppModal>
 
+    <!-- Revoke confirm -->
+    <AppModal :open="showRevoke" title="Revoke API key" description="Existing integrations using this key will stop working immediately. This cannot be undone." @close="showRevoke = false">
+      <template #footer>
+        <AppButton variant="ghost" @click="showRevoke = false">Cancel</AppButton>
+        <AppButton variant="destructive" @click="doRevoke">Revoke key</AppButton>
+      </template>
+    </AppModal>
+
     <!-- List -->
     <div class="overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)]">
       <table class="w-full text-sm">
@@ -249,7 +269,7 @@ function copySecret() {
               <span v-else class="text-xs text-[var(--color-success)]">Active</span>
             </td>
             <td class="px-3 py-2.5 text-right">
-              <button v-if="!k.revoked_at" class="text-xs font-medium text-[var(--color-error)] hover:underline" @click="revoke(k.id)">Revoke</button>
+              <button v-if="!k.revoked_at" class="text-xs font-medium text-[var(--color-error)] hover:underline" @click="askRevoke(k.id)">Revoke</button>
             </td>
           </tr>
           <tr v-if="!loading && !keys.length">

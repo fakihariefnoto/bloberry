@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Folder, FileText, ChevronRight, Upload, RefreshCw, MoreHorizontal, Globe, HardDrive } from 'lucide-vue-next'
+import { Folder, FileText, ChevronRight, Upload, RefreshCw, MoreHorizontal, Globe, HardDrive, Trash2 } from 'lucide-vue-next'
 import { api } from '../lib/api'
 import { useTenantStore } from '../stores/tenant'
 import AppButton from '../components/ui/AppButton.vue'
@@ -216,6 +216,7 @@ async function pickAndUpload() {
 
 // Bulk selection
 const selected = ref<Set<string>>(new Set())
+const showBulkDelete = ref(false)
 
 function toggleSelect(id: string) {
   const s = new Set(selected.value)
@@ -233,11 +234,15 @@ function toggleSelectAll(e: Event) {
   }
 }
 
-async function bulkDelete() {
-  const count = selected.value.size
-  if (!count) return
-  if (!window.confirm(`Delete ${count} file${count > 1 ? 's' : ''}?`)) return
-  for (const id of selected.value) {
+async function confirmBulkDelete() {
+  if (!selected.value.size) return
+  showBulkDelete.value = true
+}
+
+async function doBulkDelete() {
+  const ids = Array.from(selected.value)
+  showBulkDelete.value = false
+  for (const id of ids) {
     try { await api.delete(`/objects/${id}`) } catch { /* continue */ }
   }
   selected.value = new Set()
@@ -292,7 +297,7 @@ async function overwriteConflict() {
     <!-- Bulk actions -->
     <div v-if="selected.size" class="mb-2 flex items-center gap-3 rounded-[var(--radius-md)] border border-[var(--color-primary)] bg-[var(--color-primary-subtle)] px-3 py-2">
       <span class="text-sm font-medium text-[var(--color-text)]">{{ selected.size }} selected</span>
-      <button class="text-xs font-medium text-[var(--color-error)] hover:underline" @click="bulkDelete">Delete selected</button>
+      <button class="text-xs font-medium text-[var(--color-error)] hover:underline" @click="confirmBulkDelete">Delete selected</button>
       <button class="text-xs font-medium text-[var(--color-text-muted)] hover:underline" @click="selected = new Set()">Clear</button>
     </div>
 
@@ -363,6 +368,14 @@ async function overwriteConflict() {
         </tbody>
       </table>
     </div>
+
+    <!-- Bulk delete confirm -->
+    <AppModal :open="showBulkDelete" title="Delete selected files" :description="`Permanently delete ${selected.size} file${selected.size > 1 ? 's' : ''}? This cannot be undone.`" @close="showBulkDelete = false">
+      <template #footer>
+        <AppButton variant="ghost" @click="showBulkDelete = false">Cancel</AppButton>
+        <AppButton variant="destructive" @click="doBulkDelete"><Trash2 class="mr-2 h-4 w-4" /> Delete files</AppButton>
+      </template>
+    </AppModal>
 
     <!-- Name conflict modal -->
     <AppModal :open="showConflict" title="A file with this name already exists" description="Do you want to replace the existing file with this upload?">

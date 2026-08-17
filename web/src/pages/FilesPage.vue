@@ -20,7 +20,6 @@ const folders = ref<FolderRec[]>([])
 const objects = ref<ObjectRec[]>([])
 const loading = ref(false)
 const error = ref('')
-const dragOver = ref(false)
 
 async function load() {
   loading.value = true
@@ -96,10 +95,6 @@ function updateBackendName() {
   currentBackendName.value = b ? `${b.name} (${b.driver})` : ''
 }
 
-function openPicker() {
-  fileInput.value?.click()
-}
-
 // Folder creation modal state
 const showCreateFolder = ref(false)
 const newFolderName = ref('')
@@ -145,11 +140,6 @@ async function onFileInput(e: Event) {
   ;(e.target as HTMLInputElement).value = ''
 }
 
-async function onDrop(e: DragEvent) {
-  dragOver.value = false
-  if (e.dataTransfer?.files.length) await uploadFiles(Array.from(e.dataTransfer.files))
-}
-
 // name-conflict resolution
 const showConflict = ref(false)
 const conflictFile = ref<File | null>(null)
@@ -169,6 +159,7 @@ async function uploadFiles(files: File[], overwrite = false) {
         content_type: f.type,
       })
       item.state = 'uploading'
+      ;(item as { _url?: string })._url = res.upload_url
       const xhr = new XMLHttpRequest()
       xhr.open('PUT', res.upload_url)
       if (res.headers) Object.entries(res.headers).forEach(([k, v]) => xhr.setRequestHeader(k, v))
@@ -193,10 +184,63 @@ async function uploadFiles(files: File[], overwrite = false) {
         break // pause the queue until the user decides
       }
       item.state = 'failed'
-      item.error = err.message
+      const presign = (item as { _url?: string })._url
+      item.error = presign ? `${err.message} — presigned URL: ${presign}` : err.message
     }
   }
   uploading.value = false
+  load()
+}
+
+// Upload modal state — user picks drag-and-drop OR a file picker.
+const showUpload = ref(false)
+const uploadDragOver = ref(false)
+
+function openUpload() {
+  showUpload.value = true
+  uploadDragOver.value = false
+}
+
+function onUploadDrop(e: DragEvent) {
+  uploadDragOver.value = false
+  if (e.dataTransfer?.files.length) {
+    showUpload.value = false
+    uploadFiles(Array.from(e.dataTransfer.files))
+  }
+}
+
+async function pickAndUpload() {
+  showUpload.value = false
+  fileInput.value?.click()
+}
+
+// Bulk selection
+const selected = ref<Set<string>>(new Set())
+
+function toggleSelect(id: string) {
+  const s = new Set(selected.value)
+  if (s.has(id)) s.delete(id)
+  else s.add(id)
+  selected.value = s
+}
+
+function toggleSelectAll(e: Event) {
+  const checked = (e.target as HTMLInputElement).checked
+  if (checked) {
+    selected.value = new Set(objects.value.map((o) => o.id))
+  } else {
+    selected.value = new Set()
+  }
+}
+
+async function bulkDelete() {
+  const count = selected.value.size
+  if (!count) return
+  if (!window.confirm(`Delete ${count} file${count > 1 ? 's' : ''}?`)) return
+  for (const id of selected.value) {
+    try { await api.delete(`/objects/${id}`) } catch { /* continue */ }
+  }
+  selected.value = new Set()
   load()
 }
 
@@ -234,30 +278,31 @@ async function overwriteConflict() {
         <AppButton variant="secondary" size="sm" @click="load"><RefreshCw class="h-4 w-4" /> Refresh</AppButton>
         <AppButton variant="secondary" size="sm" @click="openCreateFolder"><Folder class="h-4 w-4" /> New folder</AppButton>
         <input ref="fileInput" type="file" multiple class="hidden" @change="onFileInput" />
-        <AppButton size="sm" :disabled="uploading" @click="openPicker"><Upload class="h-4 w-4" /> Upload</AppButton>
+        <AppButton size="sm" :disabled="uploading" @click="openUpload"><Upload class="h-4 w-4" /> Upload</AppButton>
       </div>
     </div>
 
-    <div
-      class="flex min-h-[200px] flex-col rounded-[var(--radius-md)] border-2 border-dashed p-8 text-center transition-colors duration-150"
-      :class="dragOver ? 'border-[var(--color-primary)] bg-[var(--color-primary-subtle)]' : 'border-[var(--color-border)] bg-[var(--color-background)]'"
-      @dragover.prevent="dragOver = true"
-      @dragleave.prevent="dragOver = false"
-      @drop.prevent="onDrop"
-    >
-      <Upload class="mx-auto h-6 w-6 text-[var(--color-text-muted)]" />
-      <p class="mt-2 text-sm text-[var(--color-text)]">Drag files here or press Upload</p>
-      <p class="mt-1 text-xs text-[var(--color-text-muted)]">
-        Max 5 GB per file<span v-if="currentBackendName"> · uploading to {{ currentBackendName }}</span>
-      </p>
-    </div>
+    <p class="mb-3 text-xs text-[var(--color-text-muted)]">
+      {{ currentBackendName ? `Uploading to ${currentBackendName}` : 'Select a storage engine to filter' }}
+      <span v-if="objects.length"> · {{ objects.length }} files shown</span>
+    </p>
 
     <p v-if="error" class="mt-3 text-sm text-[var(--color-error)]">{{ error }}</p>
+
+    <!-- Bulk actions -->
+    <div v-if="selected.size" class="mb-2 flex items-center gap-3 rounded-[var(--radius-md)] border border-[var(--color-primary)] bg-[var(--color-primary-subtle)] px-3 py-2">
+      <span class="text-sm font-medium text-[var(--color-text)]">{{ selected.size }} selected</span>
+      <button class="text-xs font-medium text-[var(--color-error)] hover:underline" @click="bulkDelete">Delete selected</button>
+      <button class="text-xs font-medium text-[var(--color-text-muted)] hover:underline" @click="selected = new Set()">Clear</button>
+    </div>
 
     <div class="mt-4 overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)]">
       <table class="w-full text-sm">
         <thead>
           <tr class="bg-[var(--color-surface)] text-left text-xs font-medium text-[var(--color-text-muted)]">
+            <th class="w-10 px-3 py-2">
+              <input type="checkbox" class="h-4 w-4 accent-[var(--color-primary)]" :checked="selected.size === objects.length && objects.length > 0" @change="toggleSelectAll" />
+            </th>
             <th class="px-3 py-2">Name</th>
             <th class="px-3 py-2">Size</th>
             <th class="px-3 py-2">Storage</th>
@@ -286,6 +331,9 @@ async function overwriteConflict() {
             class="cursor-pointer border-t border-[var(--color-border)] transition-colors hover:bg-[var(--color-surface)]"
             @click="openFile(o.id)"
           >
+            <td class="px-3 py-2.5" @click.stop>
+              <input type="checkbox" class="h-4 w-4 accent-[var(--color-primary)]" :checked="selected.has(o.id)" @change="toggleSelect(o.id)" />
+            </td>
             <td class="px-3 py-2.5">
               <span class="flex items-center gap-2">
                 <FileText class="h-4 w-4 text-[var(--color-text-muted)]" /> {{ o.name }}
@@ -310,7 +358,7 @@ async function overwriteConflict() {
             <td class="px-3 py-2.5"></td>
           </tr>
           <tr v-if="!loading && !folders.length && !objects.length">
-            <td colspan="5" class="px-4 py-10 text-center text-sm text-[var(--color-text-muted)]">No files here yet</td>
+            <td colspan="6" class="px-4 py-10 text-center text-sm text-[var(--color-text-muted)]">No files here yet</td>
           </tr>
         </tbody>
       </table>
@@ -325,6 +373,25 @@ async function overwriteConflict() {
       <template #footer>
         <AppButton variant="ghost" @click="skipConflict">Skip</AppButton>
         <AppButton variant="destructive" @click="overwriteConflict">Replace file</AppButton>
+      </template>
+    </AppModal>
+
+    <!-- Upload modal: drag-and-drop OR file picker -->
+    <AppModal :open="showUpload" title="Upload files" :description="currentBackendName ? `Uploading to ${currentBackendName}` : 'Choose a storage engine to upload to'" @close="showUpload = false">
+      <div
+        class="flex min-h-[220px] flex-col items-center justify-center rounded-[var(--radius-md)] border-2 border-dashed p-8 text-center transition-colors duration-150"
+        :class="uploadDragOver ? 'border-[var(--color-primary)] bg-[var(--color-primary-subtle)]' : 'border-[var(--color-border)] bg-[var(--color-background)]'"
+        @dragover.prevent="uploadDragOver = true"
+        @dragleave.prevent="uploadDragOver = false"
+        @drop.prevent="onUploadDrop"
+      >
+        <Upload class="h-8 w-8 text-[var(--color-text-muted)]" />
+        <p class="mt-3 text-sm text-[var(--color-text)]">Drag files here</p>
+        <p class="mt-1 text-xs text-[var(--color-text-muted)]">Max 5 GB per file</p>
+      </div>
+      <template #footer>
+        <AppButton variant="ghost" @click="showUpload = false">Cancel</AppButton>
+        <AppButton @click="pickAndUpload"><Upload class="mr-2 h-4 w-4" /> Choose files</AppButton>
       </template>
     </AppModal>
 

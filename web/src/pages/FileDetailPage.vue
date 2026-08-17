@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Download, Globe, Lock } from 'lucide-vue-next'
+import { ArrowLeft, Download, Globe, Lock, Trash2 } from 'lucide-vue-next'
 import { api, downloadUrl } from '../lib/api'
 import AppButton from '../components/ui/AppButton.vue'
+import AppModal from '../components/ui/AppModal.vue'
 
 interface ObjectRec {
   id: string
@@ -24,6 +25,8 @@ const fileId = route.params.fileId as string
 const obj = ref<ObjectRec | null>(null)
 const error = ref('')
 const shareUrl = ref('')
+const showDelete = ref(false)
+const deleting = ref(false)
 
 async function load() {
   try {
@@ -52,6 +55,19 @@ async function download() {
     a.remove()
   } catch (e) {
     error.value = (e as Error).message
+  }
+}
+
+async function confirmDelete() {
+  deleting.value = true
+  try {
+    await api.delete(`/objects/${fileId}`)
+    router.push({ name: 'files', query: { _t: String(Date.now()) } })
+  } catch (e) {
+    error.value = (e as Error).message
+    showDelete.value = false
+  } finally {
+    deleting.value = false
   }
 }
 
@@ -108,6 +124,7 @@ function copyText(t: string) {
       <div class="mt-6 flex gap-2">
         <AppButton @click="download"><Download class="h-4 w-4" /> Download</AppButton>
         <AppButton variant="secondary" @click="createShare">Create share link</AppButton>
+        <AppButton variant="destructive" @click="showDelete = true"><Trash2 class="h-4 w-4" /> Delete</AppButton>
       </div>
 
       <div v-if="shareUrl" class="mt-4 flex items-center gap-2">
@@ -122,5 +139,13 @@ function copyText(t: string) {
         <div><dt class="text-xs text-[var(--color-text-muted)]">Modified</dt><dd>{{ new Date(obj.updated_at).toLocaleString() }}</dd></div>
       </dl>
     </div>
+
+    <!-- Delete confirm -->
+    <AppModal :open="showDelete" title="Delete file" :description="`Permanently delete ${obj?.name}? This cannot be undone.`" @close="showDelete = false">
+      <template #footer>
+        <AppButton variant="ghost" @click="showDelete = false">Cancel</AppButton>
+        <AppButton variant="destructive" :loading="deleting" @click="confirmDelete"><Trash2 class="mr-2 h-4 w-4" /> Delete file</AppButton>
+      </template>
+    </AppModal>
   </div>
 </template>

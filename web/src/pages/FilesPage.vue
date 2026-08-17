@@ -25,6 +25,8 @@ const currentFolderName = ref('')
 async function load() {
   loading.value = true
   error.value = ''
+  folders.value = []
+  objects.value = []
   try {
     currentFolderName.value = ''
     if (folderId.value && folderId.value !== 'root') {
@@ -45,10 +47,11 @@ async function load() {
 }
 
 onMounted(() => {
-  load()
   loadBackends()
 })
-watch(folderId, load)
+watch(folderId, () => {
+  if (backendsInitialized.value) load()
+})
 
 function openFolder(id: string) {
   router.push({ name: 'files', params: { folderId: id } })
@@ -76,6 +79,7 @@ interface BackendRec { id: string; name: string; driver: string; tenant_id?: str
 const backends = ref<BackendRec[]>([])
 const selectedBackend = ref('')
 const currentBackendName = ref('')
+const backendsInitialized = ref(false)
 
 async function loadBackends() {
   try {
@@ -91,6 +95,7 @@ async function loadBackends() {
     }
     selectedBackend.value = chosen
     updateBackendName()
+    backendsInitialized.value = true
     await load()
   } catch { backends.value = [] }
 }

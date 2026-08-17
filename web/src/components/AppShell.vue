@@ -38,7 +38,7 @@ const mainNav = [
 ]
 
 const adminNav = computed(() =>
-  ['tenant_admin', 'tenant_owner'].includes(role.value)
+  isPlatformAdmin.value || ['tenant_admin', 'tenant_owner'].includes(role.value)
     ? [
         { name: 'applications', label: 'Applications', icon: KeyRound },
         { name: 'members', label: 'Members', icon: Users },

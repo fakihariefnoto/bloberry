@@ -124,8 +124,14 @@ func (l *Loader) ResolveUser(ctx context.Context, userID string) (*Principal, er
 				break
 			}
 		}
+		// Platform admins can act on any project even without a membership —
+		// they assume the owner role for the requested tenant.
 		if m == nil {
-			return nil, errors.New("no membership for requested tenant")
+			if isAdmin {
+				m = &domain.Membership{TenantID: requested, Role: "tenant_owner"}
+			} else {
+				return nil, errors.New("no membership for requested tenant")
+			}
 		}
 	} else if len(members) > 0 {
 		m = &members[0]

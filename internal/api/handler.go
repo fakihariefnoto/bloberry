@@ -86,6 +86,26 @@ func requireAdmin(w http.ResponseWriter, r *http.Request) bool {
 	return true
 }
 
+// requireTenantAdminOrPlatform allows the platform admin, or a user whose
+// principal is an admin/owner of the given tenant. Used for member management
+// and tenant settings: a platform admin can manage any project's members, a
+// project admin/owner only their own.
+func requireTenantAdminOrPlatform(w http.ResponseWriter, r *http.Request, tenantID string) bool {
+	p := principalOf(r)
+	if p == nil {
+		httpx.Error(w, http.StatusUnauthorized, "unauthorized")
+		return false
+	}
+	if p.IsPlatformAdmin {
+		return true
+	}
+	if p.TenantID == tenantID && (p.Role == authz.RoleTenantAdmin || p.Role == authz.RoleTenantOwner) {
+		return true
+	}
+	httpx.Error(w, http.StatusForbidden, "forbidden")
+	return false
+}
+
 // --- health ---
 
 func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
@@ -468,6 +488,9 @@ func (h *Handler) CreateTenant(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetTenant(w http.ResponseWriter, r *http.Request, tenantId server.TenantId) {
+	if !requireTenantAdminOrPlatform(w, r, string(tenantId)) {
+		return
+	}
 	t, err := h.Tenants.Get(r.Context(), string(tenantId))
 	if err != nil {
 		httpx.WriteError(w, err)
@@ -477,6 +500,9 @@ func (h *Handler) GetTenant(w http.ResponseWriter, r *http.Request, tenantId ser
 }
 
 func (h *Handler) UpdateTenant(w http.ResponseWriter, r *http.Request, tenantId server.TenantId) {
+	if !requireTenantAdminOrPlatform(w, r, string(tenantId)) {
+		return
+	}
 	var req struct {
 		Name             *string  `json:"name"`
 		QuotaBytes       *int64   `json:"quota_bytes"`
@@ -501,6 +527,9 @@ func (h *Handler) UpdateTenant(w http.ResponseWriter, r *http.Request, tenantId 
 }
 
 func (h *Handler) ListMembers(w http.ResponseWriter, r *http.Request, tenantId server.TenantId) {
+	if !requireTenantAdminOrPlatform(w, r, string(tenantId)) {
+		return
+	}
 	ms, err := h.Tenants.ListMembers(r.Context(), string(tenantId))
 	if err != nil {
 		httpx.WriteError(w, err)
@@ -526,6 +555,9 @@ func (h *Handler) ListMembers(w http.ResponseWriter, r *http.Request, tenantId s
 }
 
 func (h *Handler) AddMember(w http.ResponseWriter, r *http.Request, tenantId server.TenantId) {
+	if !requireTenantAdminOrPlatform(w, r, string(tenantId)) {
+		return
+	}
 	var req struct {
 		UserID string `json:"user_id"`
 		Email  string `json:"email"`
@@ -556,6 +588,9 @@ func (h *Handler) AddMember(w http.ResponseWriter, r *http.Request, tenantId ser
 }
 
 func (h *Handler) RemoveMember(w http.ResponseWriter, r *http.Request, tenantId server.TenantId, membershipId string) {
+	if !requireTenantAdminOrPlatform(w, r, string(tenantId)) {
+		return
+	}
 	if err := h.Tenants.RemoveMember(r.Context(), string(tenantId), membershipId); err != nil {
 		httpx.WriteError(w, err)
 		return
@@ -564,6 +599,9 @@ func (h *Handler) RemoveMember(w http.ResponseWriter, r *http.Request, tenantId 
 }
 
 func (h *Handler) UpdateMember(w http.ResponseWriter, r *http.Request, tenantId server.TenantId, membershipId string) {
+	if !requireTenantAdminOrPlatform(w, r, string(tenantId)) {
+		return
+	}
 	var req struct {
 		Role string `json:"role"`
 	}
@@ -579,6 +617,9 @@ func (h *Handler) UpdateMember(w http.ResponseWriter, r *http.Request, tenantId 
 }
 
 func (h *Handler) ListInvitations(w http.ResponseWriter, r *http.Request, tenantId server.TenantId) {
+	if !requireTenantAdminOrPlatform(w, r, string(tenantId)) {
+		return
+	}
 	is, err := h.Tenants.ListInvitations(r.Context(), string(tenantId))
 	if err != nil {
 		httpx.WriteError(w, err)
@@ -588,6 +629,9 @@ func (h *Handler) ListInvitations(w http.ResponseWriter, r *http.Request, tenant
 }
 
 func (h *Handler) CreateInvitation(w http.ResponseWriter, r *http.Request, tenantId server.TenantId) {
+	if !requireTenantAdminOrPlatform(w, r, string(tenantId)) {
+		return
+	}
 	p := principalOf(r)
 	var req struct {
 		Email string `json:"email"`

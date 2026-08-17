@@ -49,12 +49,12 @@ func (c *Cache) Get(ctx context.Context, ptype PrincipalType, id string) (*Princ
 	return &p, true
 }
 
-func (c *Cache) Set(ctx context.Context, p *Principal) error {
+func (c *Cache) Set(ctx context.Context, ptype PrincipalType, id string, p *Principal) error {
 	b, err := json.Marshal(p)
 	if err != nil {
 		return err
 	}
-	return c.rdb.Set(ctx, "principal:"+string(p.Type)+":"+p.ID, b, 0).Err()
+	return c.rdb.Set(ctx, "principal:"+string(ptype)+":"+id, b, 0).Err()
 }
 
 func (c *Cache) Invalidate(ctx context.Context, ptype PrincipalType, id string) error {
@@ -109,7 +109,7 @@ func (l *Loader) ResolveUser(ctx context.Context, userID string) (*Principal, er
 			return p, nil
 		}
 		p.IsPlatformAdmin = isAdmin
-		_ = l.Cache.Set(ctx, p)
+		_ = l.Cache.Set(ctx, PrincipalUser, cacheID, p)
 		return p, nil
 	}
 	members, err := l.Member.ListMembershipsByUser(ctx, userID)
@@ -139,7 +139,7 @@ func (l *Loader) ResolveUser(ctx context.Context, userID string) (*Principal, er
 			p.Grants = grantsToAuthz(grants)
 		}
 	}
-	_ = l.Cache.Set(ctx, p)
+	_ = l.Cache.Set(ctx, PrincipalUser, cacheID, p)
 	return p, nil
 }
 
@@ -172,7 +172,7 @@ func (l *Loader) ResolveAccessKey(ctx context.Context, secretHash string) (*Prin
 		KeyPermissions: toPerms(k.Permissions),
 		Grants:         grantsToAuthz(grants),
 	}
-	_ = l.Cache.Set(ctx, p)
+	_ = l.Cache.Set(ctx, PrincipalApplication, k.ID, p)
 	return p, false, nil
 }
 

@@ -32,7 +32,6 @@ onUnmounted(() => document.removeEventListener('click', onGlobalClick))
 
 const mainNav = [
   { name: 'files', label: 'Files', icon: FolderOpen },
-  { name: 'api-keys', label: 'API keys', icon: Key },
   { name: 'shares', label: 'Shares', icon: Share2 },
   { name: 'jobs', label: 'Jobs', icon: ListChecks },
   { name: 'transfers', label: 'Transfers', icon: ArrowLeftRight },
@@ -56,6 +55,7 @@ const platformNav = computed(() =>
         { name: 'admin-tenants', label: 'Projects', icon: Building2 },
         { name: 'admin-backends', label: 'Storage engines', icon: HardDrive },
         { name: 'admin-usage', label: 'Install usage', icon: BarChart3 },
+        { name: 'api-keys', label: 'API keys', icon: Key },
       ]
     : [],
 )

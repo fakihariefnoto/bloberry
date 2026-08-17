@@ -40,17 +40,27 @@ type Options struct {
 }
 
 func New(opts Options) (*Driver, error) {
+	region := orDefault(opts.Region, "us-east-1")
+	if opts.R2 {
+		// R2 requires the "auto" region in SigV4; a fixed region breaks the
+		// signature on presigned requests.
+		region = "auto"
+	}
 	cfg, err := config.LoadDefaultConfig(context.Background(),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(opts.AccessKeyID, opts.SecretAccessKey, "")),
-		config.WithRegion(orDefault(opts.Region, "us-east-1")),
+		config.WithRegion(region),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("s3: %w", err)
 	}
+	// R2 does not support virtual-hosted-style URLs — presigned URLs must be
+	// path-style against the account endpoint (<bucket>/<key>), otherwise the
+	// signature is built for the wrong host and the provider returns 403.
+	usePathStyle := opts.UsePathStyle || opts.R2
 	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
 		if opts.Endpoint != "" {
 			o.BaseEndpoint = aws.String(opts.Endpoint)
-			o.UsePathStyle = opts.UsePathStyle
+			o.UsePathStyle = usePathStyle
 		}
 	})
 	caps := storage.Capabilities{

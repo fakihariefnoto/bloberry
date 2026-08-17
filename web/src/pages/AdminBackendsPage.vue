@@ -44,7 +44,7 @@ const DRIVERS: Record<string, { label: string; config: FieldDef[]; creds: FieldD
   r2: {
     label: 'Cloudflare R2',
     config: [
-      { key: 'endpoint', label: 'Account endpoint', placeholder: 'https://<account>.r2.cloudflarestorage.com', required: true },
+      { key: 'endpoint', label: 'Account endpoint', placeholder: 'https://<account>.r2.cloudflarestorage.com', required: true, hint: 'Account-scoped endpoint — do NOT include the bucket name (no mybucket. prefix). Region is always auto.' },
       { key: 'bucket', label: 'Bucket', placeholder: 'my-bucket', required: true },
       { key: 'prefix', label: 'Prefix', placeholder: 'bloberry/' },
     ],

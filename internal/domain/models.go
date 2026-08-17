@@ -48,6 +48,10 @@ type Tenant struct {
 	Name             string     `bson:"name" json:"name"`
 	Slug             string     `bson:"slug" json:"slug"`
 	DefaultBackendID string     `bson:"default_backend_id,omitempty" json:"default_storage_id,omitempty"`
+	// StorageEngines is the set of engines this tenant may use (in addition to
+	// install-level ones). Assigning an engine here makes it selectable in the
+	// Files storage switcher for this tenant.
+	StorageEngines    []string   `bson:"storage_engines,omitempty" json:"storage_engines,omitempty"`
 	QuotaBytes       int64      `bson:"quota_bytes" json:"quota_bytes"`
 	QuotaObjects     int64      `bson:"quota_objects" json:"quota_objects"`
 	UsedBytes        int64      `bson:"used_bytes" json:"used_bytes"`

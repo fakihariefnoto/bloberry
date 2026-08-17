@@ -80,8 +80,12 @@ func (r *repo) SoftDelete(ctx context.Context, tenantID, id string) error {
 	return err
 }
 
-func (r *repo) ListByFolder(ctx context.Context, tenantID, folderID string) ([]domain.Object, error) {
-	cur, err := r.objects.Find(ctx, bson.M{"tenant_id": tenantID, "folder_id": folderID, "deleted_at": bson.M{"$exists": false}}, options.Find().SetSort(bson.M{"name": 1}))
+func (r *repo) ListByFolder(ctx context.Context, tenantID, folderID, backendID string) ([]domain.Object, error) {
+	q := bson.M{"tenant_id": tenantID, "folder_id": folderID, "deleted_at": bson.M{"$exists": false}}
+	if backendID != "" {
+		q["backend_id"] = backendID
+	}
+	cur, err := r.objects.Find(ctx, q, options.Find().SetSort(bson.M{"name": 1}))
 	if err != nil {
 		return nil, err
 	}

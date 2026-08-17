@@ -360,8 +360,8 @@ func (u *usecase) Delete(ctx context.Context, tenantID, fileID string) error {
 	return u.quota.DecrementUsed(ctx, tenantID, obj.SizeBytes, 1)
 }
 
-func (u *usecase) ListByFolder(ctx context.Context, tenantID, folderID string) ([]domain.Object, error) {
-	return u.repo.ListByFolder(ctx, tenantID, folderID)
+func (u *usecase) ListByFolder(ctx context.Context, tenantID, folderID, backendID string) ([]domain.Object, error) {
+	return u.repo.ListByFolder(ctx, tenantID, folderID, backendID)
 }
 
 func (u *usecase) Download(ctx context.Context, tenantID, fileID string, auditFn func(action string)) (*object.DownloadResult, error) {

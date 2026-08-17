@@ -478,11 +478,12 @@ func (h *Handler) GetTenant(w http.ResponseWriter, r *http.Request, tenantId ser
 
 func (h *Handler) UpdateTenant(w http.ResponseWriter, r *http.Request, tenantId server.TenantId) {
 	var req struct {
-		Name             *string `json:"name"`
-		QuotaBytes       *int64  `json:"quota_bytes"`
-		QuotaObjects     *int64  `json:"quota_objects"`
-		DefaultBackendID *string `json:"default_storage_id"`
-		Status           *string `json:"status"`
+		Name             *string  `json:"name"`
+		QuotaBytes       *int64   `json:"quota_bytes"`
+		QuotaObjects     *int64   `json:"quota_objects"`
+		DefaultBackendID *string  `json:"default_storage_id"`
+		StorageEngines   *[]string `json:"storage_engines"`
+		Status           *string  `json:"status"`
 	}
 	if err := decodeBody(r, &req); err != nil {
 		httpx.Error(w, http.StatusBadRequest, "bad_request")
@@ -490,7 +491,7 @@ func (h *Handler) UpdateTenant(w http.ResponseWriter, r *http.Request, tenantId 
 	}
 	t, err := h.Tenants.Update(r.Context(), string(tenantId), tenant.Update{
 		Name: req.Name, QuotaBytes: req.QuotaBytes, QuotaObjects: req.QuotaObjects,
-		DefaultBackendID: req.DefaultBackendID, Status: req.Status,
+		DefaultBackendID: req.DefaultBackendID, StorageEngines: req.StorageEngines, Status: req.Status,
 	})
 	if err != nil {
 		httpx.WriteError(w, err)
@@ -676,7 +677,8 @@ func (h *Handler) ListFolderChildren(w http.ResponseWriter, r *http.Request, fol
 		httpx.WriteError(w, err)
 		return
 	}
-	objects, err := h.Objects.ListByFolder(r.Context(), p.TenantID, fid)
+	storageID := r.URL.Query().Get("storage_id")
+	objects, err := h.Objects.ListByFolder(r.Context(), p.TenantID, fid, storageID)
 	if err != nil {
 		httpx.WriteError(w, err)
 		return

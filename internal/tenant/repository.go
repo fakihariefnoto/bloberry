@@ -45,6 +45,7 @@ type Update struct {
 	QuotaBytes      *int64
 	QuotaObjects    *int64
 	DefaultBackendID *string
+	StorageEngines  *[]string
 	Status          *string
 }
 

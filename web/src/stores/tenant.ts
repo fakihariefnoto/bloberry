@@ -11,6 +11,7 @@ export interface Tenant {
   used_objects: number
   status: string
   default_storage_id?: string
+  storage_engines?: string[]
 }
 
 export interface Membership {

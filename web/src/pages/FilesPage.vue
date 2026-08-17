@@ -26,7 +26,8 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    const res = await api.get<{ folders: FolderRec[]; objects: ObjectRec[] }>(`/folders/${folderId.value || 'root'}/children`)
+    const q = selectedBackend.value ? `?storage_id=${encodeURIComponent(selectedBackend.value)}` : ''
+    const res = await api.get<{ folders: FolderRec[]; objects: ObjectRec[] }>(`/folders/${folderId.value || 'root'}/children${q}`)
     folders.value = res.folders || []
     objects.value = res.objects || []
   } catch (e) {
@@ -75,6 +76,8 @@ async function loadBackends() {
     const saved = localStorage.getItem(`bloberry.backend.${tenants.currentId || ''}`) || ''
     if (saved && backends.value.some((b) => b.id === saved)) {
       selectedBackend.value = saved
+    } else if (tenants.current?.default_storage_id) {
+      selectedBackend.value = tenants.current.default_storage_id
     } else {
       selectedBackend.value = ''
     }
@@ -85,6 +88,7 @@ async function loadBackends() {
 function switchBackend() {
   localStorage.setItem(`bloberry.backend.${tenants.currentId || ''}`, selectedBackend.value)
   updateBackendName()
+  load() // refresh the listing so files from the newly-selected engine show
 }
 
 function updateBackendName() {

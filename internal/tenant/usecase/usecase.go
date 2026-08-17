@@ -70,6 +70,9 @@ func (u *usecase) Update(ctx context.Context, tenantID string, upd tenant.Update
 	if upd.DefaultBackendID != nil {
 		t.DefaultBackendID = *upd.DefaultBackendID
 	}
+	if upd.StorageEngines != nil {
+		t.StorageEngines = *upd.StorageEngines
+	}
 	if upd.Status != nil {
 		t.Status = *upd.Status
 	}

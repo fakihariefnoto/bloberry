@@ -17,7 +17,7 @@ type Repository interface {
 	Update(ctx context.Context, o *domain.Object) error
 	Delete(ctx context.Context, tenantID, id string) error
 	SoftDelete(ctx context.Context, tenantID, id string) error
-	ListByFolder(ctx context.Context, tenantID, folderID string) ([]domain.Object, error)
+	ListByFolder(ctx context.Context, tenantID, folderID, backendID string) ([]domain.Object, error)
 	// ListActiveByBackend returns active objects on a storage engine (for
 	// cross-engine transfers). Empty backendID = all engines.
 	ListActiveByBackend(ctx context.Context, tenantID, backendID string) ([]domain.Object, error)
@@ -71,7 +71,7 @@ type Usecase interface {
 	Move(ctx context.Context, tenantID, fileID, targetFolderID string) (*domain.Object, error)
 	SetVisibility(ctx context.Context, tenantID, fileID, visibility string) (*domain.Object, error)
 	Delete(ctx context.Context, tenantID, fileID string) error
-	ListByFolder(ctx context.Context, tenantID, folderID string) ([]domain.Object, error)
+	ListByFolder(ctx context.Context, tenantID, folderID, backendID string) ([]domain.Object, error)
 	Download(ctx context.Context, tenantID, fileID string, auditFn func(action string)) (*DownloadResult, error)
 }
 

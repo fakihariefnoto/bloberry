@@ -164,7 +164,7 @@ const scopeLabel = (b: Backend) => (b.tenant_id ? 'BYO tenant' : 'Install-level'
 
 <template>
   <div>
-    <PageHeader title="Storage engines" description="Credential sets per driver. Assign a tenant to one via its settings.">
+    <PageHeader title="Storage engines" description="Credential sets per driver. Assign a project to one via its settings.">
       <AppButton size="sm" @click="showCreate = !showCreate">
         <Plus class="h-4 w-4" /> Register storage engine
       </AppButton>
@@ -181,7 +181,7 @@ const scopeLabel = (b: Backend) => (b.tenant_id ? 'BYO tenant' : 'Install-level'
         </div>
 
         <div class="flex-1 space-y-5 overflow-y-auto px-6 py-5">
-          <AppInput v-model="name" label="Name" placeholder="e.g. s3-eu-prod" hint="How this storage engine appears in the tenant dropdown" />
+          <AppInput v-model="name" label="Name" placeholder="e.g. s3-eu-prod" hint="How this storage engine appears in the project dropdown" />
 
           <div class="flex flex-col gap-1">
             <label class="text-xs font-medium text-[var(--color-text-muted)]">Provider</label>

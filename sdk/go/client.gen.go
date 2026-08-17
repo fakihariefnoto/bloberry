@@ -658,8 +658,10 @@ type CreateInvitationJSONBody struct {
 
 // AddMemberJSONBody defines parameters for AddMember.
 type AddMemberJSONBody struct {
-	Role   Role   `json:"role"`
-	UserId string `json:"user_id"`
+	// Email Look up the user by email instead of user_id
+	Email  *string `json:"email,omitempty"`
+	Role   Role    `json:"role"`
+	UserId *string `json:"user_id,omitempty"`
 }
 
 // UpdateMemberJSONBody defines parameters for UpdateMember.

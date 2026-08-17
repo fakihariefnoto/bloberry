@@ -52,14 +52,14 @@ function backendLabel(b: Backend) {
 
 <template>
   <div>
-    <PageHeader title="Tenants" description="Every tenant on this install.">
-      <AppButton size="sm" @click="showCreate = !showCreate">Create tenant</AppButton>
+    <PageHeader title="Projects" description="Every project on this install.">
+      <AppButton size="sm" @click="showCreate = !showCreate">Create project</AppButton>
     </PageHeader>
 
     <!-- Create modal -->
     <div v-if="showCreate" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" @click.self="showCreate = false">
       <div class="w-full max-w-md rounded-[var(--radius-lg)] bg-[var(--color-surface-raised)] p-6 shadow-[var(--shadow-lg)]">
-        <h2 class="text-lg font-semibold text-[var(--color-text)]">Create tenant</h2>
+        <h2 class="text-lg font-semibold text-[var(--color-text)]">Create project</h2>
         <div class="mt-5 flex flex-col gap-4">
           <AppInput v-model="name" label="Name" placeholder="Acme Corp" />
           <AppInput v-model="slug" label="Slug" placeholder="acme" hint="Used in URLs and short links" />
@@ -77,7 +77,7 @@ function backendLabel(b: Backend) {
 
           <div class="flex justify-end gap-2">
             <AppButton variant="ghost" @click="showCreate = false">Cancel</AppButton>
-            <AppButton @click="create">Create tenant</AppButton>
+            <AppButton @click="create">Create project</AppButton>
           </div>
         </div>
       </div>
@@ -87,7 +87,7 @@ function backendLabel(b: Backend) {
       <table class="w-full text-sm">
         <thead>
           <tr class="bg-[var(--color-surface)] text-left text-xs font-medium text-[var(--color-text-muted)]">
-            <th class="px-3 py-2">Tenant</th>
+            <th class="px-3 py-2">Project</th>
             <th class="px-3 py-2">Status</th>
             <th class="px-3 py-2">Storage</th>
             <th class="px-3 py-2">Objects</th>
@@ -108,7 +108,7 @@ function backendLabel(b: Backend) {
             <td class="px-3 py-2.5 text-[var(--color-text-muted)]">{{ t.used_objects }}</td>
           </tr>
           <tr v-if="!loading && !tenants.length">
-            <td colspan="4" class="px-4 py-10 text-center text-sm text-[var(--color-text-muted)]">No tenants yet.</td>
+            <td colspan="4" class="px-4 py-10 text-center text-sm text-[var(--color-text-muted)]">No projects yet.</td>
           </tr>
         </tbody>
       </table>

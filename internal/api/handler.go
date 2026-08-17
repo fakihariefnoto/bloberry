@@ -506,19 +506,49 @@ func (h *Handler) ListMembers(w http.ResponseWriter, r *http.Request, tenantId s
 		httpx.WriteError(w, err)
 		return
 	}
-	data(w, http.StatusOK, ms)
+	// Enrich each membership with the user's email + display name so the UI
+	// can render "Jane (jane@acme.com)" instead of an opaque user id.
+	type memberView struct {
+		domain.Membership
+		Email       string `json:"email"`
+		DisplayName string `json:"display_name"`
+	}
+	out := make([]memberView, 0, len(ms))
+	for _, m := range ms {
+		mv := memberView{Membership: m}
+		if u, err := h.Users.GetProfile(r.Context(), m.UserID); err == nil {
+			mv.Email = u.Email
+			mv.DisplayName = u.DisplayName
+		}
+		out = append(out, mv)
+	}
+	data(w, http.StatusOK, out)
 }
 
 func (h *Handler) AddMember(w http.ResponseWriter, r *http.Request, tenantId server.TenantId) {
 	var req struct {
 		UserID string `json:"user_id"`
+		Email  string `json:"email"`
 		Role   string `json:"role"`
 	}
 	if err := decodeBody(r, &req); err != nil {
 		httpx.Error(w, http.StatusBadRequest, "bad_request")
 		return
 	}
-	if err := h.Tenants.AddMember(r.Context(), string(tenantId), req.UserID, req.Role); err != nil {
+	userID := req.UserID
+	if userID == "" && req.Email != "" {
+		u, err := h.Users.GetByEmail(r.Context(), req.Email)
+		if err != nil {
+			httpx.Error(w, http.StatusNotFound, "user_not_found")
+			return
+		}
+		userID = u.ID
+	}
+	if userID == "" {
+		httpx.Error(w, http.StatusBadRequest, "bad_request")
+		return
+	}
+	if err := h.Tenants.AddMember(r.Context(), string(tenantId), userID, req.Role); err != nil {
 		httpx.WriteError(w, err)
 		return
 	}

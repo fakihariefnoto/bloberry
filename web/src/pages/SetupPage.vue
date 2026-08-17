@@ -19,7 +19,7 @@ const displayName = ref('')
 const tenantName = ref('')
 const tenantSlug = ref('')
 
-const steps = ['Admin account', 'Your tenant', 'Done']
+const steps = ['Admin account', 'Your project', 'Done']
 
 onMounted(async () => {
   try {
@@ -44,7 +44,7 @@ function next() {
   }
   if (step.value === 2) {
     if (!tenantName.value) {
-      error.value = 'Tenant name is required.'
+      error.value = 'Project name is required.'
       return
     }
   }
@@ -131,20 +131,20 @@ const goLogin = () => router.push({ name: 'login' })
           </div>
         </div>
 
-        <!-- Step 2: tenant -->
+        <!-- Step 2: project -->
         <div v-else-if="step === 2" class="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-raised)] p-8 shadow-[var(--shadow-sm)]">
-          <h1 class="text-xl font-bold tracking-tight text-[var(--color-text)]">Name your first tenant</h1>
-          <p class="mt-1.5 text-sm text-[var(--color-text-muted)]">A tenant is your first workspace. You can add more later.</p>
+          <h1 class="text-xl font-bold tracking-tight text-[var(--color-text)]">Name your first project</h1>
+          <p class="mt-1.5 text-sm text-[var(--color-text-muted)]">A project is your first workspace. You can add more later.</p>
           <div class="mt-6 flex flex-col gap-4">
-            <AppInput v-model="tenantName" label="Tenant name" placeholder="Acme Corp" :icon="Building2" :error="step === 2 ? error : ''" />
-            <AppInput v-model="tenantSlug" label="Tenant slug" placeholder="acme" :icon="AtSign" hint="Used in URLs and short links. Leave blank to derive from the name." />
+            <AppInput v-model="tenantName" label="Project name" placeholder="Acme Corp" :icon="Building2" :error="step === 2 ? error : ''" />
+            <AppInput v-model="tenantSlug" label="Project slug" placeholder="acme" :icon="AtSign" hint="Used in URLs and short links. Leave blank to derive from the name." />
           </div>
           <div class="mt-8 flex items-center justify-between">
             <AppButton variant="ghost" @click="back">
               <ArrowLeft class="mr-2 h-4 w-4" /> Back
             </AppButton>
             <AppButton :loading="loading" @click="submit">
-              Create admin &amp; tenant
+              Create admin &amp; project
               <ArrowRight class="ml-2 h-4 w-4" />
             </AppButton>
           </div>

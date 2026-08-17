@@ -294,7 +294,7 @@ function primaryCta() {
             </li>
             <li class="flex items-start gap-3 px-6 py-5">
               <ShieldCheck class="mt-0.5 h-5 w-5 shrink-0 text-[#8b7deb]" />
-              <div><p class="text-sm font-semibold">Full audit log</p><p class="mt-1 text-xs leading-relaxed text-white/50">Every access-key and grant action is queryable per tenant.</p></div>
+              <div><p class="text-sm font-semibold">Full audit log</p><p class="mt-1 text-xs leading-relaxed text-white/50">Every access-key and grant action is queryable per project.</p></div>
             </li>
           </ul>
         </div>
@@ -311,7 +311,7 @@ function primaryCta() {
             {{ needsSetup ? 'Set up your instance.' : 'Ready when you are.' }}
           </h2>
           <p class="mx-auto mt-3 max-w-md text-sm leading-relaxed text-white/60">
-            {{ needsSetup ? 'Create your admin account and first tenant in about a minute.' : 'Sign in to manage your folders, keys and shares.' }}
+            {{ needsSetup ? 'Create your admin account and first project in about a minute.' : 'Sign in to manage your folders, keys and shares.' }}
           </p>
           <button
             class="group mt-8 inline-flex h-12 items-center gap-2 rounded-lg bg-gradient-to-r from-[#8b7deb] to-[#4c3fd4] px-7 text-sm font-semibold text-white shadow-[0_0_32px_rgba(139,125,235,0.4)] transition-all hover:shadow-[0_0_48px_rgba(139,125,235,0.6)]"

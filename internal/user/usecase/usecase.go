@@ -23,6 +23,11 @@ func (u *usecase) GetProfile(ctx context.Context, userID string) (*domain.User, 
 	return u.repo.GetByID(ctx, userID)
 }
 
+// GetByEmail resolves a user by email (for adding a project member directly).
+func (u *usecase) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
+	return u.repo.GetByEmail(ctx, email)
+}
+
 func (u *usecase) UpdateProfile(ctx context.Context, userID string, displayName, locale *string, notifications *bool) (*domain.User, error) {
 	usr, err := u.repo.GetByID(ctx, userID)
 	if err != nil {

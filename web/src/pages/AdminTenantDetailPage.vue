@@ -74,7 +74,7 @@ const back = () => router.push({ name: 'admin-tenants' })
 <template>
   <div>
     <button class="mb-4 flex items-center gap-1 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-primary)]" @click="back">
-      <ArrowLeft class="h-4 w-4" /> Back to tenants
+      <ArrowLeft class="h-4 w-4" /> Back to projects
     </button>
 
     <div v-if="t">

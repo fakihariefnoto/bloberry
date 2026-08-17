@@ -76,11 +76,11 @@ async function save() {
 
 <template>
   <div>
-    <PageHeader title="Tenant settings" :description="`Configuration for ${tenants.current?.name}.`" />
+    <PageHeader title="Project settings" :description="`Configuration for ${tenants.current?.name}.`" />
 
     <div class="mt-4 max-w-lg rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-raised)] p-6">
       <div class="flex flex-col gap-4">
-        <AppInput v-model="name" label="Tenant name" placeholder="Acme Corp" />
+        <AppInput v-model="name" label="Project name" placeholder="Acme Corp" />
         <AppInput v-model="quotaBytes" label="Quota (bytes, 0 = unlimited)" type="number" placeholder="0" />
 
         <!-- Storage engines: pick which engines the tenant may use + the default -->
@@ -109,8 +109,8 @@ async function save() {
             </label>
           </div>
           <p class="text-xs leading-relaxed text-[var(--color-text-muted)]">
-            Check an engine to let this tenant use it. The radio picks the default for new uploads (shown in Files).
-            Install-level and this tenant's own engines are always available.
+            Check an engine to let this project use it. The radio picks the default for new uploads (shown in Files).
+            Install-level and this project's own engines are always available.
           </p>
           <p v-if="!availableEngines.length" class="text-xs text-[var(--color-warning)]">No storage engines registered yet — ask a platform admin to add one.</p>
         </div>

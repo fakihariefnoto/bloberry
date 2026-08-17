@@ -24,6 +24,7 @@ type Reader interface {
 // Usecase is the user domain service.
 type Usecase interface {
 	GetProfile(ctx context.Context, userID string) (*domain.User, error)
+	GetByEmail(ctx context.Context, email string) (*domain.User, error)
 	UpdateProfile(ctx context.Context, userID string, displayName, locale *string, notifications *bool) (*domain.User, error)
 	ChangePassword(ctx context.Context, userID, current, next string) error
 }

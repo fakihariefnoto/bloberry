@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   Boxes, FolderOpen, Share2, ListChecks, KeyRound, Users, ScrollText,
-  Gauge, Settings, Building2, HardDrive, BarChart3, LogOut, User, Smartphone, ChevronDown, Key, ArrowLeftRight,
+  Gauge, Settings, Building2, HardDrive, BarChart3, LogOut, User, Smartphone, ChevronDown, Key, ArrowLeftRight, Check,
 } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
 import { useTenantStore } from '../stores/tenant'
@@ -22,6 +22,13 @@ onMounted(async () => {
 
 const isPlatformAdmin = computed(() => !!auth.user?.platform_role)
 const role = computed(() => tenants.currentRole)
+const showProjectMenu = ref(false)
+
+function onGlobalClick() {
+  showProjectMenu.value = false
+}
+onMounted(() => document.addEventListener('click', onGlobalClick))
+onUnmounted(() => document.removeEventListener('click', onGlobalClick))
 
 const mainNav = [
   { name: 'files', label: 'Files', icon: FolderOpen },
@@ -46,7 +53,7 @@ const adminNav = computed(() =>
 const platformNav = computed(() =>
   isPlatformAdmin.value
     ? [
-        { name: 'admin-tenants', label: 'Tenants', icon: Building2 },
+        { name: 'admin-tenants', label: 'Projects', icon: Building2 },
         { name: 'admin-backends', label: 'Storage engines', icon: HardDrive },
         { name: 'admin-usage', label: 'Install usage', icon: BarChart3 },
       ]
@@ -72,6 +79,7 @@ function switchTenant(id: string) {
   if (id !== tenants.currentId) {
     tenants.switchTo(id)
   }
+  showProjectMenu.value = false
 }
 
 const pageTitle = computed(() => {
@@ -79,9 +87,9 @@ const pageTitle = computed(() => {
     files: 'Files', shares: 'Shares', jobs: 'Jobs', transfers: 'Transfers', applications: 'Applications',
     'api-keys': 'API keys',
     'application-detail': 'Application', members: 'Members', audit: 'Audit log',
-    usage: 'Usage', 'tenant-settings': 'Tenant settings', profile: 'Profile',
+    usage: 'Usage', 'tenant-settings': 'Project settings', profile: 'Profile',
     'account-settings': 'Account settings', 'pair-device': 'Pair a device',
-    'admin-tenants': 'Tenants', 'admin-tenant-detail': 'Tenant',
+    'admin-tenants': 'Projects', 'admin-tenant-detail': 'Project',
     'admin-backends': 'Storage engines', 'admin-backend-detail': 'Backend',
     'admin-usage': 'Install usage',
   }
@@ -103,13 +111,45 @@ const pageTitle = computed(() => {
       </div>
 
       <div class="px-3 py-3">
-        <select
-          v-model="tenants.currentId"
-          class="h-11 w-full appearance-none rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-raised)] px-3 pr-8 text-sm font-medium text-[var(--color-text)] focus:border-[var(--color-primary)] focus:outline-none"
-          @change="switchTenant(tenants.currentId)"
-        >
-          <option v-for="t in tenants.list" :key="t.id" :value="t.id">{{ t.name }}</option>
-        </select>
+        <div class="relative" @click.stop>
+          <button
+            class="flex h-12 w-full items-center gap-2.5 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-raised)] px-3 text-left transition-colors hover:border-[var(--color-primary)]"
+            @click="showProjectMenu = !showProjectMenu"
+          >
+            <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-[var(--radius-sm)] bg-[var(--color-primary-subtle)] text-[var(--color-primary)]">
+              <Building2 class="h-4 w-4" />
+            </span>
+            <span class="min-w-0 flex-1">
+              <span class="block truncate text-sm font-semibold text-[var(--color-text)]">{{ tenants.current?.name || 'Select a project' }}</span>
+              <span class="block truncate text-[11px] text-[var(--color-text-muted)]">{{ tenants.current ? `/ ${tenants.current.slug}` : 'No project selected' }}</span>
+            </span>
+            <ChevronDown class="h-4 w-4 shrink-0 text-[var(--color-text-muted)]" :class="showProjectMenu ? 'rotate-180' : ''" />
+          </button>
+
+          <div v-if="showProjectMenu" class="absolute left-0 right-0 top-full z-40 mt-1.5 overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-raised)] shadow-[var(--shadow-lg)]">
+            <button
+              v-for="t in tenants.list"
+              :key="t.id"
+              class="flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-[var(--color-primary-subtle)]"
+              :class="t.id === tenants.currentId ? 'bg-[var(--color-primary-subtle)]' : ''"
+              @click="switchTenant(t.id)"
+            >
+              <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-[var(--radius-sm)] bg-[var(--color-surface)] text-[var(--color-primary)]">
+                <Building2 class="h-4 w-4" />
+              </span>
+              <span class="min-w-0 flex-1">
+                <span class="block truncate text-sm font-medium text-[var(--color-text)]">{{ t.name }}</span>
+                <span class="block truncate text-[11px] text-[var(--color-text-muted)]">/ {{ t.slug }}</span>
+              </span>
+              <span
+                v-if="t.id === tenants.currentId"
+                class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)]"
+              >
+                <Check class="h-3 w-3 text-[var(--color-on-primary)]" />
+              </span>
+            </button>
+          </div>
+        </div>
       </div>
 
       <nav class="flex-1 overflow-y-auto px-3 py-2">
@@ -196,7 +236,7 @@ const pageTitle = computed(() => {
         <div class="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
           <span class="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1">
             <span class="h-1.5 w-1.5 rounded-full bg-[var(--color-success)]" />
-            {{ tenants.current?.name || 'No tenant' }}
+            {{ tenants.current?.name || 'No project' }}
           </span>
         </div>
       </header>

@@ -36,7 +36,7 @@ onMounted(load)
     <div class="mb-4 flex items-center justify-between">
       <div>
         <h1 class="text-2xl font-bold text-[var(--color-text)]">Audit log</h1>
-        <p class="mt-1 text-sm text-[var(--color-text-muted)]">What happened in this tenant, in order.</p>
+        <p class="mt-1 text-sm text-[var(--color-text-muted)]">What happened in this project, in order.</p>
       </div>
       <div class="flex gap-2">
         <input v-model="action" placeholder="filter by action" class="h-9 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-xs" @keyup.enter="load" />

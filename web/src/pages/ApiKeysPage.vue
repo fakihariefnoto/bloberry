@@ -121,7 +121,7 @@ function copySecret() {
 
 <template>
   <div>
-    <PageHeader title="API keys" description="Credentials for the SDKs and integrations, scoped to a tenant.">
+    <PageHeader title="API keys" description="Credentials for the SDKs and integrations, scoped to a project.">
       <AppButton size="sm" @click="openCreate"><Plus class="h-4 w-4" /> Create key</AppButton>
     </PageHeader>
 
@@ -141,7 +141,7 @@ function copySecret() {
                 : 'border-[var(--color-border)] text-[var(--color-text-muted)]'"
               @click="keyType = 'tenant'"
             >
-              Tenant key
+              Project key
             </button>
             <button
               type="button"
@@ -156,7 +156,7 @@ function copySecret() {
           </div>
           <p class="text-xs text-[var(--color-text-muted)]">
             <span v-if="keyType === 'tenant'">
-              <Building2 class="mr-1 inline h-3 w-3" /> Tenant key: acts directly on the tenant, scoped to folders and permissions. Best for SDKs and CI.
+              <Building2 class="mr-1 inline h-3 w-3" /> Project key: acts directly on the project, scoped to folders and permissions. Best for SDKs and CI.
             </span>
             <span v-else>
               <Layers class="mr-1 inline h-3 w-3" /> Application key: belongs to an application (a non-human principal) you manage in Applications.
@@ -165,7 +165,7 @@ function copySecret() {
         </div>
 
         <div v-if="isAdmin" class="flex flex-col gap-1">
-          <label class="text-xs font-medium text-[var(--color-text-muted)]">Tenant</label>
+          <label class="text-xs font-medium text-[var(--color-text-muted)]">Project</label>
           <select v-model="tenantId" class="h-12 w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm outline-none focus:border-[var(--color-primary)] focus:border-2">
             <option v-for="t in tenants" :key="t.id" :value="t.id">{{ t.name }} ({{ t.slug }})</option>
           </select>
@@ -177,13 +177,13 @@ function copySecret() {
             <option v-for="a in apps" :key="a.id" :value="a.id">{{ a.name }}</option>
           </select>
           <p v-if="!apps.length" class="text-xs text-[var(--color-warning)]">
-            No applications yet — register one in Applications, or use a Tenant key instead.
+            No applications yet — register one in Applications, or use a Project key instead.
           </p>
         </div>
 
         <div class="flex flex-col gap-1">
           <label class="text-xs font-medium text-[var(--color-text-muted)]">Folder scope</label>
-          <input v-model="scopeFolders" placeholder="Folder IDs, comma-separated (blank = whole tenant)" class="h-12 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-xs outline-none focus:border-[var(--color-primary)] focus:border-2" />
+          <input v-model="scopeFolders" placeholder="Folder IDs, comma-separated (blank = whole project)" class="h-12 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-xs outline-none focus:border-[var(--color-primary)] focus:border-2" />
         </div>
 
         <div class="flex flex-col gap-1">
@@ -243,7 +243,7 @@ function copySecret() {
           <tr class="bg-[var(--color-surface)] text-left text-xs font-medium text-[var(--color-text-muted)]">
             <th class="px-3 py-2">Key</th>
             <th class="px-3 py-2">Name</th>
-            <th class="px-3 py-2">Tenant</th>
+            <th class="px-3 py-2">Project</th>
             <th class="px-3 py-2">Type</th>
             <th class="px-3 py-2">Permissions</th>
             <th class="px-3 py-2">State</th>
@@ -260,7 +260,7 @@ function copySecret() {
                 <Layers class="h-3.5 w-3.5" /> {{ k.application_name }}
               </span>
               <span v-else class="inline-flex items-center gap-1.5 text-[var(--color-text-muted)]">
-                <Building2 class="h-3.5 w-3.5" /> Tenant
+                <Building2 class="h-3.5 w-3.5" /> Project
               </span>
             </td>
             <td class="px-3 py-2.5 text-[var(--color-text-muted)]">{{ (k.permissions || []).join(', ') }}</td>

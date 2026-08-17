@@ -481,10 +481,13 @@ paths:
           application/json:
             schema:
               type: object
-              required: [user_id, role]
+              required: [role]
               properties:
                 user_id:
                   type: string
+                email:
+                  type: string
+                  description: Look up the user by email instead of user_id
                 role:
                   $ref: '#/components/schemas/Role'
       responses:

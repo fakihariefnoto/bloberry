@@ -34,13 +34,13 @@ function formatBytes(n: number) {
 
 <template>
   <div>
-    <PageHeader title="Install usage" description="Live storage and object counts per tenant." />
+    <PageHeader title="Install usage" description="Live storage and object counts per project." />
 
     <div class="mt-4 overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)]">
       <table class="w-full text-sm">
         <thead>
           <tr class="bg-[var(--color-surface)] text-left text-xs font-medium text-[var(--color-text-muted)]">
-            <th class="px-3 py-2">Tenant</th>
+            <th class="px-3 py-2">Project</th>
             <th class="px-3 py-2">Storage</th>
             <th class="px-3 py-2">Objects</th>
             <th class="px-3 py-2">Est. cost</th>
@@ -57,7 +57,7 @@ function formatBytes(n: number) {
             </td>
           </tr>
           <tr v-if="!loading && !snaps.length">
-            <td colspan="4" class="px-4 py-10 text-center text-sm text-[var(--color-text-muted)]">No tenants yet.</td>
+            <td colspan="4" class="px-4 py-10 text-center text-sm text-[var(--color-text-muted)]">No projects yet.</td>
           </tr>
         </tbody>
       </table>

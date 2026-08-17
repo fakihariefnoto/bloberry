@@ -124,7 +124,9 @@ async function createFolder() {
   folderCreating.value = true
   try {
     await api.post('/folders', { name, parent_id: folderId.value || 'root' })
-    closeCreateFolder()
+    showCreateFolder.value = false
+    newFolderName.value = ''
+    folderError.value = ''
     load()
   } catch (e) {
     folderError.value = (e as Error).message

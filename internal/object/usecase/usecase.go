@@ -406,7 +406,7 @@ func nowPtr() *time.Time {
 
 
 func storageKey(folderPath, name string) string {
-	p := strings.TrimSuffix(strings.TrimSpace(folderPath), "/")
+	p := strings.Trim(strings.TrimSpace(folderPath), "/")
 	if p == "" {
 		return name
 	}

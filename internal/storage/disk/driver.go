@@ -29,19 +29,25 @@ type Driver struct {
 func New(root string, secret []byte) (*Driver, error) {
 	// Probe the root up front; if it can't be created/written (e.g. /var/lib on
 	// an unprivileged dev box), fall back to a user-writable path so uploads
-	// never silently fail. The configured root is kept for prod where the
-	// operator guarantees permissions.
+	// never silently fail. The fallback is derived from the configured root so
+	// two disk engines with different roots never share a directory (which
+	// would make an engine A delete physically remove engine B's bytes).
 	dir := root
 	if err := os.MkdirAll(dir, 0o750); err != nil || !isWritable(dir) {
 		home, herr := os.UserHomeDir()
 		if herr == nil {
-			alt := filepath.Join(home, ".bloberry", "objects")
+			alt := filepath.Join(home, ".bloberry", "objects", hashSuffix(root))
 			if os.MkdirAll(alt, 0o750) == nil && isWritable(alt) {
 				dir = alt
 			}
 		}
 	}
 	return &Driver{root: dir, secret: secret}, nil
+}
+
+func hashSuffix(root string) string {
+	sum := sha256.Sum256([]byte(root))
+	return hex.EncodeToString(sum[:4])
 }
 
 func isWritable(dir string) bool {

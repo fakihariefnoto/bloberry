@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Folder, FileText, ChevronRight, Upload, RefreshCw, MoreHorizontal, Globe, HardDrive, Trash2 } from 'lucide-vue-next'
+import { Folder, FileText, ChevronRight, Upload, RefreshCw, Globe, HardDrive, Trash2 } from 'lucide-vue-next'
 import { api } from '../lib/api'
 import { useTenantStore } from '../stores/tenant'
 import AppButton from '../components/ui/AppButton.vue'
@@ -73,14 +73,17 @@ async function loadBackends() {
   try {
     backends.value = await api.get<BackendRec[]>('/backends')
     const saved = localStorage.getItem(`bloberry.backend.${tenants.currentId || ''}`) || ''
+    let chosen = ''
     if (saved && backends.value.some((b) => b.id === saved)) {
-      selectedBackend.value = saved
-    } else if (tenants.current?.default_storage_id) {
-      selectedBackend.value = tenants.current.default_storage_id
-    } else {
-      selectedBackend.value = ''
+      chosen = saved
+    } else if (tenants.current?.default_storage_id && backends.value.some((b) => b.id === tenants.current!.default_storage_id)) {
+      chosen = tenants.current.default_storage_id
+    } else if (backends.value.length) {
+      chosen = backends.value[0].id // default to the tenant's first engine
     }
+    selectedBackend.value = chosen
     updateBackendName()
+    await load()
   } catch { backends.value = [] }
 }
 
@@ -262,6 +265,33 @@ async function overwriteConflict() {
   conflictFile.value = null
   if (f) await uploadFiles([f], true)
 }
+
+// Folder deletion — subtree delete via DELETE /folders/{id}.
+const showDeleteFolder = ref(false)
+const folderToDelete = ref<FolderRec | null>(null)
+const deletingFolder = ref(false)
+
+function askDeleteFolder(f: FolderRec) {
+  folderToDelete.value = f
+  showDeleteFolder.value = true
+}
+
+async function doDeleteFolder() {
+  const f = folderToDelete.value
+  if (!f) return
+  deletingFolder.value = true
+  try {
+    await api.delete(`/folders/${f.id}`)
+    showDeleteFolder.value = false
+    folderToDelete.value = null
+    await load()
+  } catch (e) {
+    error.value = (e as Error).message
+    showDeleteFolder.value = false
+  } finally {
+    deletingFolder.value = false
+  }
+}
 </script>
 
 <template>
@@ -324,13 +354,18 @@ async function overwriteConflict() {
             class="cursor-pointer border-t border-[var(--color-border)] transition-colors hover:bg-[var(--color-surface)]"
             @click="openFolder(f.id)"
           >
+            <td class="px-3 py-2.5"></td>
             <td class="px-3 py-2.5">
               <span class="flex items-center gap-2"><Folder class="h-4 w-4 text-[var(--color-primary)]" /> {{ f.name }}</span>
             </td>
             <td class="px-3 py-2.5 text-[var(--color-text-muted)]">—</td>
             <td class="px-3 py-2.5 text-[var(--color-text-muted)]">—</td>
             <td class="px-3 py-2.5"></td>
-            <td class="px-3 py-2.5"><MoreHorizontal class="h-4 w-4 text-[var(--color-text-muted)]" /></td>
+            <td class="px-3 py-2.5" @click.stop>
+              <button class="text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-error)]" :title="`Delete folder ${f.name}`" @click="askDeleteFolder(f)">
+                <Trash2 class="h-4 w-4" />
+              </button>
+            </td>
           </tr>
           <tr
             v-for="o in objects"
@@ -376,6 +411,14 @@ async function overwriteConflict() {
       <template #footer>
         <AppButton variant="ghost" @click="showBulkDelete = false">Cancel</AppButton>
         <AppButton variant="destructive" @click="doBulkDelete"><Trash2 class="mr-2 h-4 w-4" /> Delete files</AppButton>
+      </template>
+    </AppModal>
+
+    <!-- Folder delete confirm -->
+    <AppModal :open="showDeleteFolder" title="Delete folder" :description="`Delete ${folderToDelete?.name}? Files inside it are also deleted. This cannot be undone.`" @close="showDeleteFolder = false">
+      <template #footer>
+        <AppButton variant="ghost" :disabled="deletingFolder" @click="showDeleteFolder = false">Cancel</AppButton>
+        <AppButton variant="destructive" :loading="deletingFolder" @click="doDeleteFolder"><Trash2 class="mr-2 h-4 w-4" /> Delete folder</AppButton>
       </template>
     </AppModal>
 

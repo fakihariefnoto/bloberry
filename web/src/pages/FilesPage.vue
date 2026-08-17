@@ -20,11 +20,19 @@ const folders = ref<FolderRec[]>([])
 const objects = ref<ObjectRec[]>([])
 const loading = ref(false)
 const error = ref('')
+const currentFolderName = ref('')
 
 async function load() {
   loading.value = true
   error.value = ''
   try {
+    currentFolderName.value = ''
+    if (folderId.value && folderId.value !== 'root') {
+      try {
+        const f = await api.get<FolderRec>(`/folders/${folderId.value}`)
+        currentFolderName.value = f?.name || ''
+      } catch { /* leave empty */ }
+    }
     const q = selectedBackend.value ? `?storage_id=${encodeURIComponent(selectedBackend.value)}` : ''
     const res = await api.get<{ folders: FolderRec[]; objects: ObjectRec[] }>(`/folders/${folderId.value || 'root'}/children${q}`)
     folders.value = res.folders || []
@@ -305,9 +313,11 @@ async function doDeleteFolder() {
   <div>
     <div class="mb-4 flex items-center justify-between">
       <div class="flex items-center gap-1 text-sm">
-        <button class="text-[var(--color-text-muted)] hover:text-[var(--color-primary)]" @click="router.push({ name: 'files' })">Root</button>
+        <button class="text-[var(--color-text-muted)] hover:text-[var(--color-primary)]" @click="router.push({ name: 'files' })">
+          {{ tenants.current?.name || 'Root' }}
+        </button>
         <ChevronRight v-if="folderId" class="h-4 w-4 text-[var(--color-text-muted)]" />
-        <span v-if="folderId" class="font-semibold text-[var(--color-text)]">…</span>
+        <span v-if="folderId" class="font-semibold text-[var(--color-text)]">{{ currentFolderName }}</span>
       </div>
       <div class="flex items-center gap-2">
         <select

@@ -18,7 +18,7 @@ let timer: number | undefined
 
 async function loadBackends() {
   try {
-    backends.value = await api.get<Backend[]>('/admin/backends')
+    backends.value = await api.get<Backend[]>('/backends')
     if (!source.value && backends.value.length) source.value = backends.value[0].id
     if (!target.value && backends.value.length > 1) target.value = backends.value[1].id
   } catch { backends.value = [] }

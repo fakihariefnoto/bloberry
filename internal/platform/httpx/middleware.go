@@ -62,7 +62,11 @@ func (m *Middleware) Authenticate(next http.Handler) http.Handler {
 			Error(w, http.StatusUnauthorized, "unauthorized")
 			return
 		}
-		ctx := context.WithValue(r.Context(), principalKey, principal)
+		ctx := r.Context()
+		if tid := r.Header.Get("X-Tenant-ID"); tid != "" {
+			ctx = authz.WithTenantID(ctx, tid)
+		}
+		ctx = context.WithValue(ctx, principalKey, principal)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -99,7 +103,11 @@ func (m *Middleware) resolveJWT(r *http.Request, token string) (*authz.Principal
 	if err != nil || !parsed.Valid {
 		return nil, false
 	}
-	p, err := m.resolver.ResolveUser(r.Context(), claims.UserID)
+	ctx := r.Context()
+	if tid := r.Header.Get("X-Tenant-ID"); tid != "" {
+		ctx = authz.WithTenantID(ctx, tid)
+	}
+	p, err := m.resolver.ResolveUser(ctx, claims.UserID)
 	if err != nil {
 		return nil, false
 	}

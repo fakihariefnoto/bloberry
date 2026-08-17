@@ -71,7 +71,6 @@ async function logout() {
 function switchTenant(id: string) {
   if (id !== tenants.currentId) {
     tenants.switchTo(id)
-    router.push({ name: 'files' })
   }
 }
 
@@ -203,7 +202,7 @@ const pageTitle = computed(() => {
       </header>
       <main class="flex-1 overflow-y-auto">
         <div class="mx-auto max-w-6xl px-6 py-6">
-          <RouterView />
+          <RouterView :key="tenants.currentId" />
         </div>
       </main>
     </div>

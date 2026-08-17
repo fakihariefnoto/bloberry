@@ -111,6 +111,8 @@ export async function request<T = unknown>(
   const headers: Record<string, string> = {}
   if (body !== undefined) headers['Content-Type'] = 'application/json'
   if (token) headers['Authorization'] = `Bearer ${token}`
+  const tid = localStorage.getItem('bloberry.tenant')
+  if (tid) headers['X-Tenant-ID'] = tid
 
   const res = await fetch(`${apiBase()}${path}`, {
     method,

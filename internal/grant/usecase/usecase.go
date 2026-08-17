@@ -16,7 +16,7 @@ type usecase struct {
 }
 
 type principalInvalidator interface {
-	InvalidatePrincipal(ctx context.Context, principalType, principalID string) error
+	InvalidatePrincipal(ctx context.Context, principalType, principalID, tenantID string) error
 }
 
 type folderReader interface {
@@ -51,7 +51,7 @@ func (u *usecase) Create(ctx context.Context, tenantID, folderID, principalType,
 		return nil, err
 	}
 	if u.invalidator != nil {
-		_ = u.invalidator.InvalidatePrincipal(ctx, principalType, principalID)
+		_ = u.invalidator.InvalidatePrincipal(ctx, principalType, principalID, tenantID)
 	}
 	return g, nil
 }
@@ -65,7 +65,7 @@ func (u *usecase) Revoke(ctx context.Context, tenantID, id string) error {
 		return err
 	}
 	if u.invalidator != nil {
-		_ = u.invalidator.InvalidatePrincipal(ctx, g.PrincipalType, g.PrincipalID)
+		_ = u.invalidator.InvalidatePrincipal(ctx, g.PrincipalType, g.PrincipalID, tenantID)
 	}
 	return nil
 }

@@ -18,10 +18,15 @@ type usecase struct {
 	registry   object.Registry
 	quota      quotaChecker
 	folders    folderReader
+	tenants    tenantReader
 	maxSize    int64
 	partSize   int64
 	baseURL    string
 	rawSecret  []byte
+}
+
+type tenantReader interface {
+	Get(ctx context.Context, tenantID string) (*domain.Tenant, error)
 }
 
 type quotaChecker interface {
@@ -51,6 +56,7 @@ type Deps struct {
 	Registry  object.Registry
 	Quota     quotaChecker
 	Folders   folderReader
+	Tenants   tenantReader
 	MaxSize   int64
 	PartSize  int64
 	BaseURL   string
@@ -60,7 +66,8 @@ type Deps struct {
 func NewUsecase(d Deps) object.Usecase {
 	return &usecase{
 		repo: d.Repo, registry: d.Registry, quota: d.Quota, folders: d.Folders,
-		maxSize: d.MaxSize, partSize: d.PartSize, baseURL: d.BaseURL, rawSecret: d.RawSecret,
+		tenants: d.Tenants, maxSize: d.MaxSize, partSize: d.PartSize,
+		baseURL: d.BaseURL, rawSecret: d.RawSecret,
 	}
 }
 
@@ -99,7 +106,7 @@ func (u *usecase) PresignPut(ctx context.Context, tenantID, folderID, name, back
 	if err != nil {
 		return nil, err
 	}
-	key := storageKey(folder.Path, name)
+	key := u.tenantStorageKey(ctx, tenantID, folder.Path, name)
 	// name conflict: replace (overwrite) or 409
 	if existing, err := u.repo.GetByName(ctx, tenantID, folder.ID, name); err == nil {
 		if !overwrite {
@@ -210,7 +217,7 @@ func (u *usecase) MultipartInit(ctx context.Context, tenantID, folderID, name, b
 	if !drv.Capabilities().Multipart {
 		return nil, httpx.NewErrorContent(httpx.ErrBadRequest, 400, "driver has no multipart; use presigned-PUT")
 	}
-	key := storageKey(folder.Path, name)
+	key := u.tenantStorageKey(ctx, tenantID, folder.Path, name)
 	// name conflict: replace (overwrite) or 409
 	if existing, err := u.repo.GetByName(ctx, tenantID, folder.ID, name); err == nil {
 		if !overwrite {
@@ -411,4 +418,15 @@ func storageKey(folderPath, name string) string {
 		return name
 	}
 	return p + "/" + name
+}
+
+// tenantStorageKey namespaces every object under the tenant's slug so tenants
+// never collide inside a shared bucket/prefix (a tenant's "root folder" in
+// storage is its slug). Slug is URL-safe; fall back to the raw ID if missing.
+func (u *usecase) tenantStorageKey(ctx context.Context, tenantID, folderPath, name string) string {
+	ns := tenantID
+	if t, err := u.tenants.Get(ctx, tenantID); err == nil && t.Slug != "" {
+		ns = t.Slug
+	}
+	return ns + "/" + storageKey(folderPath, name)
 }

@@ -10,6 +10,21 @@ import (
 	goredis "github.com/redis/go-redis/v9"
 )
 
+type ctxKey int
+
+const tenantCtxKey ctxKey = 1
+
+// TenantIDFrom returns the tenant requested via the X-Tenant-ID header, if any.
+func TenantIDFrom(ctx context.Context) string {
+	tid, _ := ctx.Value(tenantCtxKey).(string)
+	return tid
+}
+
+// WithTenantID returns a context carrying the requested tenant.
+func WithTenantID(ctx context.Context, tid string) context.Context {
+	return context.WithValue(ctx, tenantCtxKey, tid)
+}
+
 // Cache stores assembled Principals in Redis with explicit invalidation
 // (ADR-6): revocation takes effect on the next request, not after a TTL.
 type Cache struct {
@@ -84,7 +99,12 @@ func (l *Loader) ResolveUser(ctx context.Context, userID string) (*Principal, er
 		return nil, err
 	}
 	isAdmin := u.PlatformRole != nil && *u.PlatformRole == "platform_admin"
-	if p, ok := l.Cache.Get(ctx, PrincipalUser, userID); ok {
+	requested := TenantIDFrom(ctx)
+	cacheID := userID
+	if requested != "" {
+		cacheID = userID + ":" + requested
+	}
+	if p, ok := l.Cache.Get(ctx, PrincipalUser, cacheID); ok {
 		if p.IsPlatformAdmin == isAdmin {
 			return p, nil
 		}
@@ -96,9 +116,22 @@ func (l *Loader) ResolveUser(ctx context.Context, userID string) (*Principal, er
 	if err != nil {
 		return nil, err
 	}
+	var m *domain.Membership
+	if requested != "" {
+		for i := range members {
+			if members[i].TenantID == requested {
+				m = &members[i]
+				break
+			}
+		}
+		if m == nil {
+			return nil, errors.New("no membership for requested tenant")
+		}
+	} else if len(members) > 0 {
+		m = &members[0]
+	}
 	p := &Principal{Type: PrincipalUser, ID: userID, IsPlatformAdmin: isAdmin}
-	if len(members) > 0 {
-		m := members[0]
+	if m != nil {
 		p.TenantID = m.TenantID
 		p.Role = Role(m.Role)
 		grants, err := l.Grant.ListByPrincipal(ctx, m.TenantID, "user", userID)
@@ -143,8 +176,12 @@ func (l *Loader) ResolveAccessKey(ctx context.Context, secretHash string) (*Prin
 	return p, false, nil
 }
 
-func (l *Loader) InvalidatePrincipal(ctx context.Context, ptype, id string) error {
-	return l.Cache.Invalidate(ctx, PrincipalType(ptype), id)
+func (l *Loader) InvalidatePrincipal(ctx context.Context, ptype, id, tenantID string) error {
+	key := id
+	if tenantID != "" {
+		key = id + ":" + tenantID
+	}
+	return l.Cache.Invalidate(ctx, PrincipalType(ptype), key)
 }
 
 // InvalidateKey clears a key's cached lookup after revoke.

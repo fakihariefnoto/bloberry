@@ -127,7 +127,7 @@ func main() {
 	regInstance = reg
 	objectRepo := objectrepo.New(mdb.DB)
 	objectUC := objectuc.NewUsecase(objectuc.Deps{
-		Repo: objectRepo, Registry: reg, Quota: tenantUC, Folders: folderUC,
+		Repo: objectRepo, Registry: reg, Quota: tenantUC, Folders: folderUC, Tenants: tenantUC,
 		MaxSize: cfg.MaxObjectSize, PartSize: cfg.MultipartPartSize,
 		BaseURL: cfg.BaseURL, RawSecret: []byte(cfg.CredentialEncryptionKey),
 	})

@@ -23,9 +23,11 @@ onMounted(async () => {
 const isPlatformAdmin = computed(() => !!auth.user?.platform_role)
 const role = computed(() => tenants.currentRole)
 const showProjectMenu = ref(false)
+const showUserMenu = ref(false)
 
 function onGlobalClick() {
   showProjectMenu.value = false
+  showUserMenu.value = false
 }
 onMounted(() => document.addEventListener('click', onGlobalClick))
 onUnmounted(() => document.removeEventListener('click', onGlobalClick))
@@ -196,48 +198,58 @@ const pageTitle = computed(() => {
           </RouterLink>
         </template>
       </nav>
-
-      <div class="border-t border-[var(--color-border)] p-3">
-        <div class="flex items-center gap-2.5 rounded-[var(--radius-md)] px-2 py-2">
-          <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary-subtle)] text-sm font-semibold text-[var(--color-primary)]">
-            {{ (auth.user?.display_name || auth.user?.email || '?').charAt(0).toUpperCase() }}
-          </span>
-          <div class="min-w-0 flex-1">
-            <p class="truncate text-sm font-medium text-[var(--color-text)]">{{ auth.user?.display_name || 'Account' }}</p>
-            <p class="truncate text-xs text-[var(--color-text-muted)]">{{ auth.user?.email }}</p>
-          </div>
-          <ChevronDown class="h-4 w-4 text-[var(--color-text-muted)]" />
-        </div>
-        <div class="mt-1 flex flex-col gap-0.5 border-t border-[var(--color-border)] pt-2">
-          <RouterLink
-            v-for="item in userNav"
-            :key="item.name"
-            :to="{ name: item.name }"
-            class="flex items-center gap-3 rounded-[var(--radius-md)] px-3 py-2 text-sm text-[var(--color-text-muted)] hover:bg-[var(--color-surface-raised)] hover:text-[var(--color-text)]"
-          >
-            <component :is="item.icon" class="h-4 w-4" />
-            {{ item.label }}
-          </RouterLink>
-          <button
-            class="flex items-center gap-3 rounded-[var(--radius-md)] px-3 py-2 text-sm text-[var(--color-error)] hover:bg-[var(--color-surface-raised)]"
-            @click="logout"
-          >
-            <LogOut class="h-4 w-4" />
-            Log out
-          </button>
-        </div>
-      </div>
     </aside>
 
     <!-- Main -->
     <div class="flex min-w-0 flex-1 flex-col">
       <header class="flex h-16 shrink-0 items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-surface-raised)]/60 px-6 backdrop-blur">
         <h2 class="text-[15px] font-semibold tracking-tight text-[var(--color-text)]">{{ pageTitle }}</h2>
-        <div class="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
-          <span class="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1">
+        <div class="flex items-center gap-3 text-xs text-[var(--color-text-muted)]">
+          <span class="hidden items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 sm:inline-flex">
             <span class="h-1.5 w-1.5 rounded-full bg-[var(--color-success)]" />
             {{ tenants.current?.name || 'No project' }}
           </span>
+
+          <!-- User menu -->
+          <div class="relative" @click.stop>
+            <button
+              class="flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] py-1 pl-1 pr-3 transition-colors hover:border-[var(--color-primary)]"
+              @click="showUserMenu = !showUserMenu"
+            >
+              <span class="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--color-primary-subtle)] text-xs font-semibold text-[var(--color-primary)]">
+                {{ (auth.user?.display_name || auth.user?.email || '?').charAt(0).toUpperCase() }}
+              </span>
+              <span class="hidden flex-col items-start sm:flex">
+                <span class="max-w-[140px] truncate text-xs font-medium leading-tight text-[var(--color-text)]">{{ auth.user?.display_name || 'Account' }}</span>
+                <span class="max-w-[140px] truncate text-[11px] leading-tight text-[var(--color-text-muted)]">{{ auth.user?.email }}</span>
+              </span>
+              <ChevronDown class="h-3.5 w-3.5" :class="showUserMenu ? 'rotate-180' : ''" />
+            </button>
+
+            <div v-if="showUserMenu" class="absolute right-0 top-full z-40 mt-1.5 w-56 overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-raised)] py-1 shadow-[var(--shadow-lg)]">
+              <div class="border-b border-[var(--color-border)] px-3 pb-2 pt-1.5">
+                <p class="truncate text-sm font-semibold text-[var(--color-text)]">{{ auth.user?.display_name || 'Account' }}</p>
+                <p class="truncate text-xs text-[var(--color-text-muted)]">{{ auth.user?.email }}</p>
+              </div>
+              <RouterLink
+                v-for="item in userNav"
+                :key="item.name"
+                :to="{ name: item.name }"
+                class="flex items-center gap-2.5 px-3 py-2 text-sm text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface)] hover:text-[var(--color-text)]"
+                @click="showUserMenu = false"
+              >
+                <component :is="item.icon" class="h-4 w-4" />
+                {{ item.label }}
+              </RouterLink>
+              <button
+                class="flex w-full items-center gap-2.5 border-t border-[var(--color-border)] px-3 py-2 text-sm text-[var(--color-error)] transition-colors hover:bg-[var(--color-surface)]"
+                @click="logout"
+              >
+                <LogOut class="h-4 w-4" />
+                Log out
+              </button>
+            </div>
+          </div>
         </div>
       </header>
       <main class="flex-1 overflow-y-auto">

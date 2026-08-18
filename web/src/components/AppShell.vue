@@ -39,17 +39,21 @@ const mainNav = [
   { name: 'transfers', label: 'Transfers', icon: ArrowLeftRight },
 ]
 
-const adminNav = computed(() =>
-  isPlatformAdmin.value || ['tenant_admin', 'tenant_owner'].includes(role.value)
-    ? [
-        { name: 'applications', label: 'Applications', icon: KeyRound },
-        { name: 'members', label: 'Members', icon: Users },
-        { name: 'audit', label: 'Audit log', icon: ScrollText },
-        { name: 'usage', label: 'Usage', icon: Gauge },
-        { name: 'tenant-settings', label: 'Settings', icon: Settings },
-      ]
-    : [],
-)
+const adminNav = computed(() => {
+  if (!isPlatformAdmin.value && !['tenant_admin', 'tenant_owner'].includes(role.value)) return []
+  const items: { name: string; label: string; icon: any }[] = [
+    { name: 'applications', label: 'Applications', icon: KeyRound },
+    { name: 'members', label: 'Members', icon: Users },
+    { name: 'audit', label: 'Audit log', icon: ScrollText },
+    { name: 'usage', label: 'Usage', icon: Gauge },
+  ]
+  // Platform admins manage project config from Platform > Projects; this
+  // Settings item is for tenant admins/owners without the Platform menu.
+  if (!isPlatformAdmin.value) {
+    items.push({ name: 'tenant-settings', label: 'Settings', icon: Settings })
+  }
+  return items
+})
 
 const platformNav = computed(() =>
   isPlatformAdmin.value

@@ -19,6 +19,11 @@ onMounted(async () => {
   try {
     const st = await api.get<{ needs_setup: boolean }>('/setup/status')
     needsSetup.value = st.needs_setup
+    // App already set up and user not signed in → straight to login.
+    if (!st.needs_setup) {
+      router.replace({ name: 'login' })
+      return
+    }
   } catch {
     needsSetup.value = false
   } finally {

@@ -7,7 +7,7 @@ import AppButton from '../components/ui/AppButton.vue'
 import AppInput from '../components/ui/AppInput.vue'
 import AppModal from '../components/ui/AppModal.vue'
 
-interface Membership { id: string; user_id: string; email?: string; display_name?: string; role: string; created_at: string }
+interface Membership { id: string; user_id: string; email?: string; display_name?: string; role: string; created_at: string; needs_activation?: boolean }
 interface Invitation { id: string; email: string; role: string }
 
 const tenants = useTenantStore()
@@ -107,6 +107,26 @@ async function setRole(id: string, r: string) {
 function copyGenerated() {
   navigator.clipboard?.writeText(generated.value)
 }
+
+const copiedId = ref('')
+
+function copyActivationMessage(m: Membership) {
+  const origin = window.location.origin
+  const msg = [
+    `Hi${m.display_name ? ' ' + m.display_name : ''},`,
+    ``,
+    `You've been added to the ${tenants.current?.name || 'project'} on Bloberry. To activate your account:`,
+    ``,
+    `1. Open: ${origin}/activate`,
+    `2. Enter your email: ${m.email || m.user_id}`,
+    `3. Choose a password and confirm.`,
+    ``,
+    `This only works once for your email — after that, sign in normally.`,
+  ].join('\n')
+  navigator.clipboard?.writeText(msg)
+  copiedId.value = m.id
+  setTimeout(() => { copiedId.value = '' }, 2000)
+}
 </script>
 
 <template>
@@ -136,7 +156,12 @@ function copyGenerated() {
                   {{ (m.display_name || m.email || m.user_id).charAt(0).toUpperCase() }}
                 </span>
                 <div class="min-w-0">
-                  <p class="truncate text-sm font-medium text-[var(--color-text)]">{{ m.display_name || '—' }}</p>
+                  <p class="truncate text-sm font-medium text-[var(--color-text)]">
+                    {{ m.display_name || '—' }}
+                    <span v-if="m.needs_activation" class="ml-2 inline-flex items-center gap-1 rounded-full bg-[var(--color-warning)]/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--color-warning)]">
+                      Pending activation
+                    </span>
+                  </p>
                   <p class="truncate text-xs text-[var(--color-text-muted)]">{{ m.email || m.user_id }}</p>
                 </div>
               </div>
@@ -154,6 +179,10 @@ function copyGenerated() {
               </select>
             </td>
             <td class="px-3 py-2.5 text-right">
+              <button v-if="m.needs_activation" class="text-xs font-medium text-[var(--color-primary)] hover:underline" @click="copyActivationMessage(m)">
+                {{ copiedId === m.id ? 'Copied ✓' : 'Copy activation message' }}
+              </button>
+              <span v-if="m.needs_activation" class="mx-1.5 text-[var(--color-text-muted)]">·</span>
               <button class="text-xs text-[var(--color-error)] hover:underline" @click="askRemove(m)">Remove</button>
             </td>
           </tr>
@@ -165,6 +194,11 @@ function copyGenerated() {
     </div>
 
     <h2 class="mb-2 mt-6 text-lg font-semibold text-[var(--color-text)]">Pending invitations</h2>
+    <p v-if="members.some((m) => m.needs_activation)" class="mb-2 text-xs text-[var(--color-text-muted)]">
+      Members marked <span class="font-medium text-[var(--color-warning)]">Pending activation</span> above were added without email.
+      Use <span class="font-medium text-[var(--color-primary)]">Copy activation message</span> and give it to them in person —
+      they activate once at your /activate page.
+    </p>
     <div class="overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)]">
       <table class="w-full text-sm">
         <tbody>

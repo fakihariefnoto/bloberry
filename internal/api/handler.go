@@ -565,8 +565,9 @@ func (h *Handler) ListMembers(w http.ResponseWriter, r *http.Request, tenantId s
 	// can render "Jane (jane@acme.com)" instead of an opaque user id.
 	type memberView struct {
 		domain.Membership
-		Email       string `json:"email"`
-		DisplayName string `json:"display_name"`
+		Email           string `json:"email"`
+		DisplayName     string `json:"display_name"`
+		NeedsActivation bool   `json:"needs_activation"`
 	}
 	out := make([]memberView, 0, len(ms))
 	for _, m := range ms {
@@ -574,6 +575,7 @@ func (h *Handler) ListMembers(w http.ResponseWriter, r *http.Request, tenantId s
 		if u, err := h.Users.GetProfile(r.Context(), m.UserID); err == nil {
 			mv.Email = u.Email
 			mv.DisplayName = u.DisplayName
+			mv.NeedsActivation = u.PasswordHash == nil || *u.PasswordHash == ""
 		}
 		out = append(out, mv)
 	}

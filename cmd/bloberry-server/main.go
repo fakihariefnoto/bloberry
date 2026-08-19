@@ -245,6 +245,7 @@ var publicPaths = map[string]bool{
 	"POST /auth/pair/verify":         true,
 	"POST /auth/login/verify-totp":   true,
 	"POST /v1/auth/activate":         true,
+	"POST /auth/activate":            true,
 }
 
 // apiPrefixes are the top-level path prefixes the JSON API owns. Entries with a

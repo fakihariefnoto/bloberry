@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"io"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -91,9 +92,34 @@ func (u *usecase) backendFor(ctx context.Context, tenantID, backendID string) (*
 	return be, drv, nil
 }
 
+// rejectUnsafeName blocks uploads whose filename implies executable content.
+// The file bytes are also served with nosniff + content-type allowlist, but a
+// double barrier (extension gate at upload + safe headers at serve) means an
+// uploaded shell can neither be stored under a misleading name nor executed
+// when a public link is hit.
+var dangerousExts = map[string]bool{
+	".php": true, ".php3": true, ".php4": true, ".php5": true, ".phtml": true,
+	".asp": true, ".aspx": true, ".jsp": true, ".cgi": true, ".pl": true, ".py": true,
+	".sh": true, ".bash": true, ".zsh": true, ".bat": true, ".cmd": true, ".com": true,
+	".exe": true, ".msi": true, ".scr": true, ".hta": true, ".js": true, ".mjs": true,
+	".html": true, ".htm": true, ".xhtml": true, ".svg": true, ".xml": true,
+	".jar": true, ".war": true, ".apk": true, ".class": true, ".ps1": true,
+}
+
+func rejectUnsafeName(name string) error {
+	ext := strings.ToLower(filepath.Ext(name))
+	if dangerousExts[ext] {
+		return httpx.NewErrorContent(httpx.ErrBadRequest, 400, "upload blocked: ."+strings.TrimPrefix(ext, ".")+" files can carry executable content")
+	}
+	return nil
+}
+
 func (u *usecase) PresignPut(ctx context.Context, tenantID, folderID, name, backendID string, overwrite bool, size int64, contentType string, principalID string) (*object.PresignResult, error) {
 	if size > u.maxSize {
 		return nil, httpx.NewError(httpx.ErrPayloadTooLarge, 413)
+	}
+	if err := rejectUnsafeName(name); err != nil {
+		return nil, err
 	}
 	folder, err := u.folders.Get(ctx, tenantID, resolveFolderID(ctx, u.folders, tenantID, folderID))
 	if err != nil {
@@ -202,6 +228,9 @@ func (u *usecase) DirectUpload(ctx context.Context, tenantID, folderID, name, ba
 func (u *usecase) MultipartInit(ctx context.Context, tenantID, folderID, name, backendID string, overwrite bool, size int64, contentType string, principalID string) (*object.PresignResult, error) {
 	if size > u.maxSize {
 		return nil, httpx.NewError(httpx.ErrPayloadTooLarge, 413)
+	}
+	if err := rejectUnsafeName(name); err != nil {
+		return nil, err
 	}
 	folder, err := u.folders.Get(ctx, tenantID, resolveFolderID(ctx, u.folders, tenantID, folderID))
 	if err != nil {
@@ -371,11 +400,21 @@ func (u *usecase) ListByFolder(ctx context.Context, tenantID, folderID, backendI
 	return u.repo.ListByFolder(ctx, tenantID, folderID, backendID)
 }
 
-func (u *usecase) Download(ctx context.Context, tenantID, fileID string, auditFn func(action string)) (*object.DownloadResult, error) {
-	obj, err := u.repo.GetByID(ctx, tenantID, fileID)
+// PublicDownload serves an object's bytes with no authentication — only when
+// the owner explicitly flipped it to public. The file is resolved by id (no
+// slug/secret), so "public" means anyone with the link can read it.
+func (u *usecase) PublicDownload(ctx context.Context, fileID string) (*object.DownloadResult, error) {
+	obj, err := u.repo.GetByIDPublic(ctx, fileID)
 	if err != nil {
 		return nil, err
 	}
+	if obj.Visibility != "public" {
+		return nil, httpx.ErrResourceNotFound
+	}
+	return u.downloadBytes(ctx, obj, nil)
+}
+
+func (u *usecase) downloadBytes(ctx context.Context, obj *domain.Object, auditFn func(action string)) (*object.DownloadResult, error) {
 	drv, err := u.registry.Get(obj.BackendID)
 	if err != nil {
 		return nil, httpx.NewError(httpx.ErrBackendUnreachable, 502)
@@ -390,7 +429,6 @@ func (u *usecase) Download(ctx context.Context, tenantID, fileID string, auditFn
 		}
 		return &object.DownloadResult{RedirectURL: pu.URL, Object: obj, ContentType: obj.ContentType, Size: obj.SizeBytes}, nil
 	}
-	// proxy path
 	rc, info, err := drv.Get(ctx, obj.StorageKey, nil)
 	if err != nil {
 		return nil, httpx.NewError(httpx.ErrBackendUnreachable, 502)
@@ -403,6 +441,14 @@ func (u *usecase) Download(ctx context.Context, tenantID, fileID string, auditFn
 		size = info.Size
 	}
 	return &object.DownloadResult{Stream: rc, Object: obj, ContentType: obj.ContentType, Size: size}, nil
+}
+
+func (u *usecase) Download(ctx context.Context, tenantID, fileID string, auditFn func(action string)) (*object.DownloadResult, error) {
+	obj, err := u.repo.GetByID(ctx, tenantID, fileID)
+	if err != nil {
+		return nil, err
+	}
+	return u.downloadBytes(ctx, obj, auditFn)
 }
 
 func nowPtr() *time.Time {

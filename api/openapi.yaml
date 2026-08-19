@@ -917,6 +917,23 @@ paths:
           description: Redirect to provider
         '200':
           description: Streamed bytes (proxy path)
+  /objects/{fileId}/content:
+    get:
+      operationId: downloadPublicObject
+      summary: Serve a public object without authentication
+      description: >
+        No auth required. Only serves objects whose owner set
+        visibility=public — private files return 404. Display-safe media
+        (images/audio/video) is served inline; everything else downloads as
+        application/octet-stream with nosniff so uploaded HTML/SVG/JS can
+        never execute in the caller's browser.
+      parameters:
+        - $ref: '#/components/parameters/FileId'
+      responses:
+        '200':
+          description: Streamed bytes
+        '404':
+          description: Object not found or private
   /objects/{fileId}/move:
     post:
       operationId: moveObject

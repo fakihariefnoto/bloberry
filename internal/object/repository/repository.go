@@ -54,6 +54,18 @@ func (r *repo) GetByID(ctx context.Context, tenantID, id string) (*domain.Object
 	return &o, nil
 }
 
+// GetByIDPublic looks up an object by id across any tenant. The caller must
+// still verify visibility — this is the "who owns it" unknown, so a public
+// object is served only after the usecase confirms Visibility == public.
+func (r *repo) GetByIDPublic(ctx context.Context, id string) (*domain.Object, error) {
+	var o domain.Object
+	err := r.objects.FindOne(ctx, bson.M{"_id": id, "deleted_at": bson.M{"$exists": false}}).Decode(&o)
+	if err != nil {
+		return nil, httpx.ErrResourceNotFound
+	}
+	return &o, nil
+}
+
 func (r *repo) GetByName(ctx context.Context, tenantID, folderID, name string) (*domain.Object, error) {
 	var o domain.Object
 	err := r.objects.FindOne(ctx, bson.M{"tenant_id": tenantID, "folder_id": folderID, "name": name, "deleted_at": bson.M{"$exists": false}}).Decode(&o)

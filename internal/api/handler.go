@@ -1018,6 +1018,67 @@ func (h *Handler) DownloadObject(w http.ResponseWriter, r *http.Request, fileId 
 	serveProxyStream(w, r, res.Object.Name, res.Object.UpdatedAt, res.Stream)
 }
 
+// DownloadPublicObject serves an object with no authentication. It is only
+// reachable when the owner set visibility=public — the usecase rejects
+// private files. Content is served inline (so <img> works) but with
+// X-Content-Type-Options: nosniff and a content-type allowlist so an uploaded
+// .html/.svg/.php can't execute in the caller's browser.
+func (h *Handler) DownloadPublicObject(w http.ResponseWriter, r *http.Request, fileId string) {
+	res, err := h.Objects.PublicDownload(r.Context(), fileId)
+	if err != nil {
+		if httpx.IsNotFound(err) {
+			w.WriteHeader(http.StatusNotFound)
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			_, _ = w.Write([]byte("<!doctype html><html><body><h1>Object not found or private</h1></body></html>"))
+			return
+		}
+		httpx.WriteError(w, err)
+		return
+	}
+	if res.RedirectURL != "" {
+		http.Redirect(w, r, res.RedirectURL, http.StatusFound)
+		return
+	}
+	setPublicContentHeaders(w, res)
+	serveProxyStream(w, r, res.Object.Name, res.Object.UpdatedAt, res.Stream)
+}
+
+// setPublicContentHeaders applies safe headers for public (unauth) content.
+// Inline only for display-safe media types; everything else forces download
+// as application/octet-stream so uploaded HTML/SVG/JS can never run.
+func setPublicContentHeaders(w http.ResponseWriter, res *object.DownloadResult) {
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Content-Security-Policy", "default-src 'none'; sandbox")
+	if isInlineSafeType(res.ContentType) {
+		w.Header().Set("Content-Type", res.ContentType)
+		w.Header().Set("Content-Disposition", "inline; filename=\""+strings.ReplaceAll(res.Object.Name, "\"", "")+"\"")
+	} else {
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.Header().Set("Content-Disposition", "attachment; filename=\""+strings.ReplaceAll(res.Object.Name, "\"", "")+"\"")
+	}
+}
+
+// isInlineSafeType reports whether a content type can be rendered inline.
+// Images, audio and video are safe to preview; anything that can execute
+// (HTML, SVG-as-text, JS, XML, fonts, etc.) is forced to download.
+func isInlineSafeType(ct string) bool {
+	switch {
+	case ct == "":
+		return false
+	case strings.HasPrefix(ct, "image/"):
+		// allow png/jpeg/gif/webp/avif/bmp; svg can carry scripts → download
+		if strings.Contains(ct, "svg") {
+			return false
+		}
+		return true
+	case strings.HasPrefix(ct, "audio/"):
+		return true
+	case strings.HasPrefix(ct, "video/"):
+		return true
+	}
+	return false
+}
+
 // --- shares ---
 
 func (h *Handler) ListShareLinks(w http.ResponseWriter, r *http.Request) {

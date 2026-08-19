@@ -183,6 +183,12 @@ func main() {
 	// disk driver's raw HMAC endpoint (domains.md §6.3) — token-gated, not JWT.
 	r.Get("/v1/objects/raw", diskRawGet(objectRepo, reg, []byte(cfg.CredentialEncryptionKey)))
 	r.Put("/v1/objects/raw", diskRawPut(objectRepo, reg, []byte(cfg.CredentialEncryptionKey), cfg.MaxObjectSize))
+	// Public object content — no auth. Only serves objects whose owner set
+	// visibility=public; private files return 404. Inline only for safe media,
+	// everything else downloads as octet-stream (no script execution).
+	r.Get("/v1/objects/{fileId}/content", func(w http.ResponseWriter, req *http.Request) {
+		handler.DownloadPublicObject(w, req, chi.URLParam(req, "fileId"))
+	})
 
 	// The generated mux owns all spec routes (public + authed). An auth-gate
 	// middleware wraps it: public paths pass through, everything else must

@@ -974,6 +974,9 @@ type ServerInterface interface {
 	// CompleteUpload Confirm a presigned-PUT upload
 	// (POST /objects/{fileId}/complete)
 	CompleteUpload(w http.ResponseWriter, r *http.Request, fileId FileId)
+	// DownloadPublicObject Serve a public object without authentication
+	// (GET /objects/{fileId}/content)
+	DownloadPublicObject(w http.ResponseWriter, r *http.Request, fileId FileId)
 	// DownloadObject Download an object (redirect or proxy)
 	// (GET /objects/{fileId}/download)
 	DownloadObject(w http.ResponseWriter, r *http.Request, fileId FileId)
@@ -1397,6 +1400,12 @@ func (_ Unimplemented) StatObject(w http.ResponseWriter, r *http.Request, fileId
 // CompleteUpload Confirm a presigned-PUT upload
 // (POST /objects/{fileId}/complete)
 func (_ Unimplemented) CompleteUpload(w http.ResponseWriter, r *http.Request, fileId FileId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// DownloadPublicObject Serve a public object without authentication
+// (GET /objects/{fileId}/content)
+func (_ Unimplemented) DownloadPublicObject(w http.ResponseWriter, r *http.Request, fileId FileId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -2724,6 +2733,32 @@ func (siw *ServerInterfaceWrapper) CompleteUpload(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// DownloadPublicObject operation middleware
+func (siw *ServerInterfaceWrapper) DownloadPublicObject(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "fileId" -------------
+	var fileId FileId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "fileId", chi.URLParam(r, "fileId"), &fileId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "fileId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DownloadPublicObject(w, r, fileId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // DownloadObject operation middleware
 func (siw *ServerInterfaceWrapper) DownloadObject(w http.ResponseWriter, r *http.Request) {
 
@@ -3613,6 +3648,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/objects/{fileId}/download", wrapper.DownloadObject)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/objects/{fileId}/content", wrapper.DownloadPublicObject)
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/objects/{fileId}/move", wrapper.MoveObject)

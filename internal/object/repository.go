@@ -13,6 +13,7 @@ import (
 type Repository interface {
 	Insert(ctx context.Context, o *domain.Object) error
 	GetByID(ctx context.Context, tenantID, id string) (*domain.Object, error)
+	GetByIDPublic(ctx context.Context, id string) (*domain.Object, error)
 	GetByName(ctx context.Context, tenantID, folderID, name string) (*domain.Object, error)
 	Update(ctx context.Context, o *domain.Object) error
 	Delete(ctx context.Context, tenantID, id string) error
@@ -73,6 +74,7 @@ type Usecase interface {
 	Delete(ctx context.Context, tenantID, fileID string) error
 	ListByFolder(ctx context.Context, tenantID, folderID, backendID string) ([]domain.Object, error)
 	Download(ctx context.Context, tenantID, fileID string, auditFn func(action string)) (*DownloadResult, error)
+	PublicDownload(ctx context.Context, fileID string) (*DownloadResult, error)
 }
 
 type DownloadResult struct {

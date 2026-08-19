@@ -1396,6 +1396,13 @@ type ClientInterface interface {
 	// Corresponds with POST /objects/{fileId}/complete (the `CompleteUpload` operationId).
 	CompleteUpload(ctx context.Context, fileId FileId, body CompleteUploadJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// DownloadPublicObject Serve a public object without authentication
+	//
+	// No auth required. Only serves objects whose owner set visibility=public — private files return 404. Display-safe media (images/audio/video) is served inline; everything else downloads as application/octet-stream with nosniff so uploaded HTML/SVG/JS can never execute in the caller's browser.
+	//
+	// Corresponds with GET /objects/{fileId}/content (the `DownloadPublicObject` operationId).
+	DownloadPublicObject(ctx context.Context, fileId FileId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// DownloadObject Download an object (redirect or proxy)
 	//
 	// Corresponds with GET /objects/{fileId}/download (the `DownloadObject` operationId).
@@ -2993,6 +3000,23 @@ func (c *Client) CompleteUploadWithBody(ctx context.Context, fileId FileId, cont
 // Corresponds with POST /objects/{fileId}/complete (the `CompleteUpload` operationId).
 func (c *Client) CompleteUpload(ctx context.Context, fileId FileId, body CompleteUploadJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCompleteUploadRequest(c.Server, fileId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DownloadPublicObject Serve a public object without authentication
+//
+// No auth required. Only serves objects whose owner set visibility=public — private files return 404. Display-safe media (images/audio/video) is served inline; everything else downloads as application/octet-stream with nosniff so uploaded HTML/SVG/JS can never execute in the caller's browser.
+//
+// Corresponds with GET /objects/{fileId}/content (the `DownloadPublicObject` operationId).
+func (c *Client) DownloadPublicObject(ctx context.Context, fileId FileId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDownloadPublicObjectRequest(c.Server, fileId)
 	if err != nil {
 		return nil, err
 	}
@@ -5828,6 +5852,40 @@ func NewCompleteUploadRequestWithBody(server string, fileId FileId, contentType 
 	return req, nil
 }
 
+// NewDownloadPublicObjectRequest constructs an http.Request for the DownloadPublicObject method
+func NewDownloadPublicObjectRequest(server string, fileId FileId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "fileId", fileId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/objects/%s/content", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewDownloadObjectRequest constructs an http.Request for the DownloadObject method
 func NewDownloadObjectRequest(server string, fileId FileId) (*http.Request, error) {
 	var err error
@@ -7576,6 +7634,15 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /objects/{fileId}/complete (the `CompleteUpload` operationId).
 	CompleteUploadWithResponse(ctx context.Context, fileId FileId, body CompleteUploadJSONRequestBody, reqEditors ...RequestEditorFn) (*CompleteUploadResponse, error)
+
+	// DownloadPublicObjectWithResponse Serve a public object without authentication
+	//
+	// No auth required. Only serves objects whose owner set visibility=public — private files return 404. Display-safe media (images/audio/video) is served inline; everything else downloads as application/octet-stream with nosniff so uploaded HTML/SVG/JS can never execute in the caller's browser.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /objects/{fileId}/content (the `DownloadPublicObject` operationId).
+	DownloadPublicObjectWithResponse(ctx context.Context, fileId FileId, reqEditors ...RequestEditorFn) (*DownloadPublicObjectResponse, error)
 
 	// DownloadObjectWithResponse Download an object (redirect or proxy)
 	//
@@ -10230,6 +10297,40 @@ func (r CompleteUploadResponse) ContentType() string {
 	return ""
 }
 
+type DownloadPublicObjectResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// GetBody returns the raw response body bytes
+func (r DownloadPublicObjectResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DownloadPublicObjectResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DownloadPublicObjectResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DownloadPublicObjectResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type DownloadObjectResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -12472,6 +12573,21 @@ func (c *ClientWithResponses) CompleteUploadWithResponse(ctx context.Context, fi
 	return ParseCompleteUploadResponse(rsp)
 }
 
+// DownloadPublicObjectWithResponse Serve a public object without authentication
+//
+// No auth required. Only serves objects whose owner set visibility=public — private files return 404. Display-safe media (images/audio/video) is served inline; everything else downloads as application/octet-stream with nosniff so uploaded HTML/SVG/JS can never execute in the caller's browser.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /objects/{fileId}/content (the `DownloadPublicObject` operationId).
+func (c *ClientWithResponses) DownloadPublicObjectWithResponse(ctx context.Context, fileId FileId, reqEditors ...RequestEditorFn) (*DownloadPublicObjectResponse, error) {
+	rsp, err := c.DownloadPublicObject(ctx, fileId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDownloadPublicObjectResponse(rsp)
+}
+
 // DownloadObjectWithResponse Download an object (redirect or proxy)
 //
 // Returns a wrapper object for the known response body format(s).
@@ -14529,6 +14645,22 @@ func ParseCompleteUploadResponse(rsp *http.Response) (*CompleteUploadResponse, e
 		}
 		response.JSON200 = &dest
 
+	}
+
+	return response, nil
+}
+
+// ParseDownloadPublicObjectResponse parses an HTTP response from a DownloadPublicObjectWithResponse call
+func ParseDownloadPublicObjectResponse(rsp *http.Response) (*DownloadPublicObjectResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DownloadPublicObjectResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
 	}
 
 	return response, nil

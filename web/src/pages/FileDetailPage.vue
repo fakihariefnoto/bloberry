@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, Download, Globe, Lock, Trash2 } from 'lucide-vue-next'
 import { api, downloadUrl } from '../lib/api'
@@ -88,6 +88,10 @@ async function togglePublic() {
   }
 }
 
+const publicContentUrl = computed(() =>
+  obj.value?.visibility === 'public' ? `${import.meta.env.VITE_API_BASE || ''}/v1/objects/${fileId}/content` : '',
+)
+
 const back = () => router.push({ name: 'files' })
 function copyText(t: string) {
   window.navigator.clipboard?.writeText(t)
@@ -130,6 +134,12 @@ function copyText(t: string) {
       <div v-if="shareUrl" class="mt-4 flex items-center gap-2">
         <code class="flex-1 truncate rounded-[var(--radius-sm)] bg-[var(--color-surface)] px-3 py-2 text-xs font-mono text-[var(--color-text)]">{{ shareUrl }}</code>
         <AppButton size="sm" variant="secondary" @click="copyText(shareUrl)">Copy</AppButton>
+      </div>
+
+      <!-- Public link (no auth, no expiry) -->
+      <div v-if="publicContentUrl" class="mt-4 flex items-center gap-2">
+        <code class="flex-1 truncate rounded-[var(--radius-sm)] bg-[var(--color-surface)] px-3 py-2 text-xs font-mono text-[var(--color-text)]">{{ publicContentUrl }}</code>
+        <AppButton size="sm" variant="secondary" @click="copyText(publicContentUrl)">Copy</AppButton>
       </div>
 
       <dl class="mt-6 grid grid-cols-2 gap-4 border-t border-[var(--color-border)] pt-4 text-sm">

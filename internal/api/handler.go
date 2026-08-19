@@ -650,26 +650,25 @@ func (h *Handler) AddMember(w http.ResponseWriter, r *http.Request, tenantId ser
 		return
 	}
 
-	// Default "invite" method: user must already exist, or SMTP must be
-	// configured to deliver the invitation email.
-	userID := req.UserID
-	if userID == "" && req.Email != "" {
-		u, err := h.Users.GetByEmail(r.Context(), req.Email)
-		if err != nil {
-			httpx.Error(w, http.StatusNotFound, "user_not_found")
+	// Default "invite" method: if the user already has an account, add them as
+	// a member directly. Otherwise create an invitation so a brand-new user can
+	// sign up via the emailed link (works without a pre-existing account).
+	if req.Email != "" {
+		if u, err := h.Users.GetByEmail(r.Context(), req.Email); err == nil {
+			if err := h.Tenants.AddMember(r.Context(), string(tenantId), u.ID, req.Role); err != nil {
+				httpx.WriteError(w, err)
+				return
+			}
+			data(w, http.StatusCreated, map[string]interface{}{"method": "invite", "user_id": u.ID, "email": u.Email, "existing": true})
 			return
 		}
-		userID = u.ID
 	}
-	if userID == "" {
-		httpx.Error(w, http.StatusBadRequest, "bad_request")
-		return
-	}
-	if err := h.Tenants.AddMember(r.Context(), string(tenantId), userID, req.Role); err != nil {
+	inv, err := h.Tenants.CreateInvitation(r.Context(), string(tenantId), req.Email, req.Role, principalOf(r).ID)
+	if err != nil {
 		httpx.WriteError(w, err)
 		return
 	}
-	data(w, http.StatusCreated, map[string]interface{}{"method": "invite", "user_id": userID})
+	data(w, http.StatusCreated, map[string]interface{}{"method": "invite", "invitation_id": inv.ID, "email": req.Email, "existing": false})
 }
 
 func (h *Handler) RemoveMember(w http.ResponseWriter, r *http.Request, tenantId server.TenantId, membershipId string) {

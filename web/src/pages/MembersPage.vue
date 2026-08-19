@@ -44,7 +44,7 @@ onMounted(async () => {
   await load()
   try {
     const st = await api.get<{ smtp_configured?: boolean }>('/setup/status')
-    smtpConfigured.value = st?.smtp_configured !== false
+    smtpConfigured.value = st?.smtp_configured === true
   } catch { smtpConfigured.value = false }
 })
 

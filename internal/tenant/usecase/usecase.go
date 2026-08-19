@@ -7,15 +7,30 @@ import (
 	"github.com/fakihariefnoto/bloberry/internal/domain"
 	"github.com/fakihariefnoto/bloberry/internal/platform/crypto"
 	"github.com/fakihariefnoto/bloberry/internal/platform/httpx"
+	"github.com/fakihariefnoto/bloberry/internal/platform/mailer"
 	"github.com/fakihariefnoto/bloberry/internal/tenant"
 )
 
 type usecase struct {
-	repo tenant.Repository
+	repo     tenant.Repository
+	mailer   mailer.Mailer
+	baseURL  string
+	smtpOn   bool
 }
 
 func NewUsecase(repo tenant.Repository) tenant.Usecase {
 	return &usecase{repo: repo}
+}
+
+// WithMailer enables transactional email for this usecase. When smtpOn is
+// false the mailer is ignored (local dev).
+func WithMailer(u tenant.Usecase, m mailer.Mailer, baseURL string, smtpOn bool) tenant.Usecase {
+	if uc, ok := u.(*usecase); ok {
+		uc.mailer = m
+		uc.baseURL = baseURL
+		uc.smtpOn = smtpOn
+	}
+	return u
 }
 
 var _ tenant.Usecase = (*usecase)(nil)
@@ -139,6 +154,16 @@ func (u *usecase) CreateInvitation(ctx context.Context, tenantID, email, role, i
 	}
 	if err := u.repo.InsertInvitation(ctx, inv); err != nil {
 		return nil, err
+	}
+	if u.smtpOn && u.mailer != nil {
+		url := u.baseURL + "/invite/" + token
+		tenantName := ""
+		if t, err := u.repo.GetByID(ctx, tenantID); err == nil {
+			tenantName = t.Name
+		}
+		_ = u.mailer.Send(ctx, email, "You've been invited to Bloberry",
+			"Join "+tenantName+" on Bloberry: "+url+" (valid 7 days)",
+			mailer.Render("invite", map[string]string{"tenant": tenantName, "url": url}))
 	}
 	return inv, nil
 }

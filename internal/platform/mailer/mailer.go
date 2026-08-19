@@ -2,21 +2,23 @@ package mailer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/smtp"
 	"strings"
 )
 
 // Mailer sends transactional email. The SMTP transport is configured in main;
-// this interface is what auth/user depend on.
+// this interface is what auth/user depend on. html may be empty for
+// text-only clients.
 type Mailer interface {
-	Send(ctx context.Context, to, subject, text string) error
+	Send(ctx context.Context, to, subject, text, html string) error
 }
 
 // Noop is the default for local dev — logs instead of sending.
 type Noop struct{ Log func(msg string) }
 
-func (m Noop) Send(_ context.Context, to, subject, text string) error {
+func (m Noop) Send(_ context.Context, to, subject, text, html string) error {
 	if m.Log != nil {
 		m.Log("mail: to=" + to + " subject=" + subject)
 	}
@@ -24,7 +26,8 @@ func (m Noop) Send(_ context.Context, to, subject, text string) error {
 }
 
 // SMTP is a plain/STARTTLS SMTP sender built on net/smtp. It is used only when
-// SMTP_HOST is configured; otherwise main wires Noop.
+// SMTP_HOST is configured; otherwise main wires Noop. When an HTML body is
+// provided the message is sent as multipart/alternative (text + HTML).
 type SMTP struct {
 	Host     string
 	Port     int
@@ -33,21 +36,44 @@ type SMTP struct {
 	From     string
 }
 
-func (s *SMTP) Send(_ context.Context, to, subject, text string) error {
+func (s *SMTP) Send(_ context.Context, to, subject, text, html string) error {
+	if s.Host == "" {
+		return errors.New("mailer: SMTP_HOST not configured")
+	}
 	addr := fmt.Sprintf("%s:%d", s.Host, s.Port)
-	msg := "From: " + s.From + "\r\n" +
-		"To: " + to + "\r\n" +
-		"Subject: " + subject + "\r\n" +
-		"MIME-Version: 1.0\r\n" +
-		"Content-Type: text/plain; charset=UTF-8\r\n" +
-		"\r\n" + text + "\r\n"
+	msg, err := s.buildMessage(to, subject, text, html)
+	if err != nil {
+		return err
+	}
 	var auth smtp.Auth
 	if s.User != "" {
 		auth = smtp.PlainAuth("", s.User, s.Password, s.Host)
 	}
-	// net/smtp sends plaintext on 25; on 465/587 the sendmail helper still
-	// works but does not STARTTLS. For TLS you'd use a tls client; the
-	// envelope/relay for most providers tolerates this in test setups.
 	toList := strings.Split(to, ",")
 	return smtp.SendMail(addr, auth, s.From, toList, []byte(msg))
+}
+
+func (s *SMTP) buildMessage(to, subject, text, html string) (string, error) {
+	if html == "" {
+		return "From: " + s.From + "\r\n" +
+			"To: " + to + "\r\n" +
+			"Subject: " + subject + "\r\n" +
+			"MIME-Version: 1.0\r\n" +
+			"Content-Type: text/plain; charset=UTF-8\r\n" +
+			"\r\n" + text + "\r\n", nil
+	}
+	boundary := "bloberry-alt-7f4a9c2e"
+	return "From: " + s.From + "\r\n" +
+		"To: " + to + "\r\n" +
+		"Subject: " + subject + "\r\n" +
+		"MIME-Version: 1.0\r\n" +
+		"Content-Type: multipart/alternative; boundary=\"" + boundary + "\"\r\n" +
+		"\r\n" +
+		"--" + boundary + "\r\n" +
+		"Content-Type: text/plain; charset=UTF-8\r\n" +
+		"\r\n" + text + "\r\n" +
+		"--" + boundary + "\r\n" +
+		"Content-Type: text/html; charset=UTF-8\r\n" +
+		"\r\n" + html + "\r\n" +
+		"--" + boundary + "--\r\n", nil
 }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Mail, KeyRound, ArrowRight, Boxes } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
@@ -14,6 +14,14 @@ const code = ref('')
 const sent = ref(false)
 const error = ref('')
 const loading = ref(false)
+
+onMounted(async () => {
+  await auth.loadSmtpConfig()
+  // One-time code login requires SMTP — otherwise password login only.
+  if (!auth.smtpConfigured) {
+    router.replace({ name: 'login' })
+  }
+})
 
 async function request() {
   error.value = ''

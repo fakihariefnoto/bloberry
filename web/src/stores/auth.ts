@@ -27,6 +27,7 @@ export const useAuthStore = defineStore('auth', {
     user: null as User | null,
     accessToken: localStorage.getItem(ACCESS_KEY) || null,
     refreshToken: localStorage.getItem(REFRESH_KEY) || null,
+    smtpConfigured: false,
   }),
   getters: {
     isAuthenticated: (s) => !!s.accessToken,
@@ -93,6 +94,14 @@ export const useAuthStore = defineStore('auth', {
       const u = await api.get<User>('/users/me')
       this.user = u
       return u
+    },
+    async loadSmtpConfig() {
+      try {
+        const st = await api.get<{ smtp_configured?: boolean }>('/setup/status')
+        this.smtpConfigured = st?.smtp_configured === true
+      } catch {
+        this.smtpConfigured = false
+      }
     },
     bootstrap() {
       if (this.accessToken) setToken(this.accessToken)

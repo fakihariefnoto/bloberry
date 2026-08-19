@@ -123,11 +123,11 @@ func main() {
 		Repo: authRepo, Users: usrs, Sessions: sess, Tokens: issuer,
 		Mailer: mail, Google: &googleVerifier{clientID: cfg.GoogleClientID},
 		Envelope: crypto.NewEnvelopeOrPanic(cfg.CredentialEncryptionKey),
-		Redis: redisKV{rdb: rdb},
+		Redis: redisKV{rdb: rdb}, BaseURL: cfg.BaseURL,
 	})
 
 	tenantRepo := tenantrepo.New(mdb.DB)
-	tenantUC := tenantuc.NewUsecase(tenantRepo)
+	tenantUC := tenantuc.WithMailer(tenantuc.NewUsecase(tenantRepo), mail, cfg.BaseURL, cfg.SMTPConfigured)
 
 	folderRepo := folderrepo.New(mdb.DB)
 	folderUC := folderuc.NewUsecase(folderRepo)

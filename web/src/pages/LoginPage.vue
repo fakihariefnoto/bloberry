@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Mail, Lock, ArrowRight, Boxes, ArrowLeft } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
@@ -14,6 +14,8 @@ const email = ref('')
 const password = ref('')
 const error = ref('')
 const loading = ref(false)
+
+onMounted(() => auth.loadSmtpConfig())
 
 const loginOtp = () => router.push({ name: 'otp-login' })
 const loginForgot = () => router.push({ name: 'forgot-password' })
@@ -74,7 +76,7 @@ async function submit() {
           </AppButton>
         </form>
 
-        <div class="mt-6 border-t border-[var(--color-border)] pt-5 text-center">
+        <div v-if="auth.smtpConfigured" class="mt-6 border-t border-[var(--color-border)] pt-5 text-center">
           <button class="text-sm font-medium text-[var(--color-primary)] hover:underline" @click="loginOtp">Use a one-time code instead</button>
         </div>
       </div>

@@ -66,6 +66,7 @@ type Deps struct {
 	Google   GoogleVerifier
 	Envelope CredentialEnvelope
 	Redis    RedisStore
+	BaseURL  string
 }
 
 type RedisStore interface {
@@ -89,7 +90,7 @@ type TokenIssuer interface {
 }
 
 type Mailer interface {
-	Send(ctx context.Context, to, subject, text string) error
+	Send(ctx context.Context, to, subject, text, html string) error
 }
 
 type GoogleVerifier interface {

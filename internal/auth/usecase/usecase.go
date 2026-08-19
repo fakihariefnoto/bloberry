@@ -11,6 +11,7 @@ import (
 	"github.com/fakihariefnoto/bloberry/internal/domain"
 	"github.com/fakihariefnoto/bloberry/internal/platform/crypto"
 	"github.com/fakihariefnoto/bloberry/internal/platform/httpx"
+	"github.com/fakihariefnoto/bloberry/internal/platform/mailer"
 )
 
 type usecase struct {
@@ -234,8 +235,10 @@ func (u *usecase) ForgotPassword(ctx context.Context, email string) error {
 	if err := u.d.Redis.Set(ctx, key, usr.ID, resetTTL); err != nil {
 		return err
 	}
+	url := u.d.BaseURL + "/reset-password?token=" + token
 	_ = u.d.Mailer.Send(ctx, email, "Reset your Bloberry password",
-		"Reset link (valid 30 minutes). If you didn't ask for this, ignore it.")
+		"Reset link (valid 30 minutes). If you didn't ask for this, ignore it.\n\n"+url,
+		mailer.Render("reset", map[string]string{"email": email, "url": url}))
 	return nil
 }
 
@@ -278,7 +281,9 @@ func (u *usecase) RequestOTP(ctx context.Context, email string) error {
 	if err := u.d.Redis.Set(ctx, key, string(payload), otpTTL); err != nil {
 		return err
 	}
-	_ = u.d.Mailer.Send(ctx, email, "Your Bloberry login code", "Code: "+code)
+	_ = u.d.Mailer.Send(ctx, email, "Your Bloberry login code",
+		"Your one-time code is: "+code+" (valid 5 minutes)",
+		mailer.Render("otp", map[string]string{"code": code}))
 	return nil
 }
 

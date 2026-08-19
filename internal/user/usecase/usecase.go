@@ -28,6 +28,16 @@ func (u *usecase) GetByEmail(ctx context.Context, email string) (*domain.User, e
 	return u.repo.GetByEmail(ctx, email)
 }
 
+// CreatePending registers a password-less user for the activation flow (added
+// as a member when SMTP email is unavailable; they set a password once).
+func (u *usecase) CreatePending(ctx context.Context, email string) (*domain.User, error) {
+	usr := &domain.User{Email: email, EmailVerified: true}
+	if err := u.repo.Insert(ctx, usr); err != nil {
+		return nil, err
+	}
+	return usr, nil
+}
+
 func (u *usecase) UpdateProfile(ctx context.Context, userID string, displayName, locale *string, notifications *bool) (*domain.User, error) {
 	usr, err := u.repo.GetByID(ctx, userID)
 	if err != nil {

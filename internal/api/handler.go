@@ -160,6 +160,24 @@ func (h *Handler) Signup(w http.ResponseWriter, r *http.Request) {
 	writeTokens(w, res, err)
 }
 
+// Activate sets the first password for a member who was added without SMTP
+// email (auto-registered pending activation). First-time only — the same email
+// cannot activate twice.
+func (h *Handler) ActivateAccount(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Email       string `json:"email"`
+		Password    string `json:"password"`
+		DisplayName string `json:"display_name"`
+		Platform    string `json:"platform"`
+	}
+	if err := decodeBody(r, &req); err != nil {
+		httpx.Error(w, http.StatusBadRequest, "bad_request")
+		return
+	}
+	res, err := h.Auth.Activate(r.Context(), req.Email, req.Password, req.DisplayName, orPlatform(req.Platform))
+	writeTokens(w, res, err)
+}
+
 type loginReq struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
@@ -561,14 +579,73 @@ func (h *Handler) AddMember(w http.ResponseWriter, r *http.Request, tenantId ser
 		return
 	}
 	var req struct {
-		UserID string `json:"user_id"`
-		Email  string `json:"email"`
-		Role   string `json:"role"`
+		UserID   string `json:"user_id"`
+		Email    string `json:"email"`
+		Role     string `json:"role"`
+		Password string `json:"password"`
+		// Method: "invite" (default, requires SMTP) | "password" (admin sets a
+		// password, user is auto-registered) | "activation" (no email server;
+		// user activates on first login by email + password).
+		Method string `json:"method"`
 	}
 	if err := decodeBody(r, &req); err != nil {
 		httpx.Error(w, http.StatusBadRequest, "bad_request")
 		return
 	}
+	if req.Email == "" && req.UserID == "" {
+		httpx.Error(w, http.StatusBadRequest, "bad_request")
+		return
+	}
+
+	// Method "password": auto-register (create user + password + membership)
+	// without any email. This is the no-SMTP path.
+	if req.Method == "password" {
+		if req.Password == "" {
+			httpx.Error(w, http.StatusBadRequest, "password_required")
+			return
+		}
+		res, err := h.Auth.RegisterMember(r.Context(), req.Email, req.Password, "", string(tenantId), req.Role)
+		if err != nil {
+			httpx.WriteError(w, err)
+			return
+		}
+		data(w, http.StatusCreated, map[string]interface{}{
+			"method": "password", "user_id": res.User.ID, "email": res.User.Email,
+		})
+		return
+	}
+
+	// Method "activation": no SMTP configured — register a password-less user
+	// that must activate once (email + password) before first login.
+	if req.Method == "activation" {
+		ph := ""
+		usr, err := h.Users.GetByEmail(r.Context(), req.Email)
+		if err == nil {
+			if usr.PasswordHash != nil {
+				httpx.Error(w, http.StatusConflict, "already_activated")
+				return
+			}
+		} else if httpx.IsNotFound(err) {
+			usr, err = h.Users.CreatePending(r.Context(), req.Email)
+			if err != nil {
+				httpx.WriteError(w, err)
+				return
+			}
+		} else {
+			httpx.WriteError(w, err)
+			return
+		}
+		_ = ph
+		if err := h.Tenants.AddMember(r.Context(), string(tenantId), usr.ID, req.Role); err != nil {
+			httpx.WriteError(w, err)
+			return
+		}
+		data(w, http.StatusCreated, map[string]interface{}{"method": "activation", "user_id": usr.ID, "email": usr.Email})
+		return
+	}
+
+	// Default "invite" method: user must already exist, or SMTP must be
+	// configured to deliver the invitation email.
 	userID := req.UserID
 	if userID == "" && req.Email != "" {
 		u, err := h.Users.GetByEmail(r.Context(), req.Email)
@@ -586,7 +663,7 @@ func (h *Handler) AddMember(w http.ResponseWriter, r *http.Request, tenantId ser
 		httpx.WriteError(w, err)
 		return
 	}
-	data(w, http.StatusCreated, nil)
+	data(w, http.StatusCreated, map[string]interface{}{"method": "invite", "user_id": userID})
 }
 
 func (h *Handler) RemoveMember(w http.ResponseWriter, r *http.Request, tenantId server.TenantId, membershipId string) {

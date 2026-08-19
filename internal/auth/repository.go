@@ -34,6 +34,8 @@ type TokenResult struct {
 type Usecase interface {
 	Signup(ctx context.Context, inviteToken, email, password, displayName, platform string) (*TokenResult, error)
 	Login(ctx context.Context, email, password, platform string) (*TokenResult, error)
+	Activate(ctx context.Context, email, password, displayName, platform string) (*TokenResult, error)
+	RegisterMember(ctx context.Context, email, password, displayName, tenantID, role string) (*TokenResult, error)
 	VerifyTotpLogin(ctx context.Context, pending, code string) (*TokenResult, error)
 	Refresh(ctx context.Context, refreshToken string) (*TokenResult, error)
 	Logout(ctx context.Context, refreshToken string) error

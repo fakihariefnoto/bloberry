@@ -19,7 +19,11 @@ const error = ref('')
 const showAdd = ref(false)
 const email = ref('')
 const role = ref('member')
+const method = ref<'invite' | 'password' | 'activation'>('invite')
+const password = ref('')
 const adding = ref(false)
+const generated = ref('')
+const smtpConfigured = ref(true)
 
 const showRemove = ref(false)
 const removeTarget = ref<Membership | null>(null)
@@ -36,27 +40,45 @@ async function load() {
     invites.value = await api.get<Invitation[]>(`/tenants/${tenants.currentId}/invitations`)
   } catch { members.value = []; invites.value = [] } finally { loading.value = false }
 }
-onMounted(load)
-
-async function addByEmail() {
-  error.value = ''
-  adding.value = true
+onMounted(async () => {
+  await load()
   try {
-    await api.post(`/tenants/${tenants.currentId}/members`, { email: email.value, role: role.value })
-    showAdd.value = false
-    email.value = ''
-    load()
-  } catch (e) { error.value = (e as Error).message } finally { adding.value = false }
+    const st = await api.get<{ smtp_configured?: boolean }>('/setup/status')
+    smtpConfigured.value = st?.smtp_configured !== false
+  } catch { smtpConfigured.value = false }
+})
+
+function openAdd() {
+  email.value = ''
+  password.value = ''
+  generated.value = ''
+  error.value = ''
+  method.value = smtpConfigured.value ? 'invite' : 'password'
+  showAdd.value = true
 }
 
-async function invite() {
+async function addMember() {
   error.value = ''
+  generated.value = ''
   adding.value = true
   try {
-    await api.post(`/tenants/${tenants.currentId}/invitations`, { email: email.value, role: role.value })
+    const body: Record<string, unknown> = { email: email.value, role: role.value, method: method.value }
+    if (method.value === 'password') {
+      if (password.value.length < 8) {
+        error.value = 'Password must be at least 8 characters.'
+        adding.value = false
+        return
+      }
+      body.password = password.value
+    }
+    await api.post(`/tenants/${tenants.currentId}/members`, body)
+    if (method.value === 'password') {
+      generated.value = password.value
+    }
     showAdd.value = false
     email.value = ''
-    load()
+    password.value = ''
+    await load()
   } catch (e) { error.value = (e as Error).message } finally { adding.value = false }
 }
 
@@ -81,6 +103,10 @@ async function setRole(id: string, r: string) {
   await api.patch(`/tenants/${tenants.currentId}/members/${id}`, { role: r })
   load()
 }
+
+function copyGenerated() {
+  navigator.clipboard?.writeText(generated.value)
+}
 </script>
 
 <template>
@@ -90,7 +116,7 @@ async function setRole(id: string, r: string) {
         <h1 class="text-2xl font-bold text-[var(--color-text)]">Members</h1>
         <p class="mt-1 text-sm text-[var(--color-text-muted)]">Who has access to {{ tenants.current?.name }} and what they can do.</p>
       </div>
-      <AppButton size="sm" @click="showAdd = true"><UserPlus class="mr-1.5 h-4 w-4" /> Add member</AppButton>
+      <AppButton size="sm" @click="openAdd"><UserPlus class="mr-1.5 h-4 w-4" /> Add member</AppButton>
     </div>
 
     <div class="overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)]">
@@ -153,10 +179,44 @@ async function setRole(id: string, r: string) {
       </table>
     </div>
 
-    <!-- Add member modal: add an existing user by email -->
-    <AppModal :open="showAdd" title="Add a member" description="Add someone who already has an account by email, or invite them by email." @close="showAdd = false">
+    <!-- Add member modal -->
+    <AppModal :open="showAdd" title="Add a member" description="Choose how this member gets access." @close="showAdd = false">
       <div class="flex flex-col gap-3">
         <AppInput v-model="email" label="Email" placeholder="jane@acme.com" autofocus />
+
+        <div v-if="smtpConfigured" class="flex flex-col gap-1">
+          <label class="text-xs font-medium text-[var(--color-text-muted)]">Delivery method</label>
+          <div class="grid grid-cols-1 gap-1.5">
+            <label class="flex cursor-pointer items-start gap-2.5 rounded-[var(--radius-md)] border p-3" :class="method === 'invite' ? 'border-[var(--color-primary)] bg-[var(--color-primary-subtle)]' : 'border-[var(--color-border)]'" @click="method = 'invite'">
+              <input type="radio" :checked="method === 'invite'" class="mt-0.5 h-4 w-4 accent-[var(--color-primary)]" @change="method = 'invite'" />
+              <span class="text-sm text-[var(--color-text)]">Send invitation email <span class="block text-xs text-[var(--color-text-muted)]">Member receives a sign-up link by email.</span></span>
+            </label>
+            <label class="flex cursor-pointer items-start gap-2.5 rounded-[var(--radius-md)] border p-3" :class="method === 'password' ? 'border-[var(--color-primary)] bg-[var(--color-primary-subtle)]' : 'border-[var(--color-border)]'" @click="method = 'password'">
+              <input type="radio" :checked="method === 'password'" class="mt-0.5 h-4 w-4 accent-[var(--color-primary)]" @change="method = 'password'" />
+              <span class="text-sm text-[var(--color-text)]">Set a password for them <span class="block text-xs text-[var(--color-text-muted)]">Share it securely yourself. No email needed.</span></span>
+            </label>
+          </div>
+        </div>
+
+        <div v-if="!smtpConfigured" class="flex flex-col gap-1">
+          <label class="text-xs font-medium text-[var(--color-text-muted)]">Delivery method</label>
+          <div class="grid grid-cols-1 gap-1.5">
+            <label class="flex cursor-pointer items-start gap-2.5 rounded-[var(--radius-md)] border p-3" :class="method === 'password' ? 'border-[var(--color-primary)] bg-[var(--color-primary-subtle)]' : 'border-[var(--color-border)]'" @click="method = 'password'">
+              <input type="radio" :checked="method === 'password'" class="mt-0.5 h-4 w-4 accent-[var(--color-primary)]" @change="method = 'password'" />
+              <span class="text-sm text-[var(--color-text)]">Set a password for them <span class="block text-xs text-[var(--color-text-muted)]">Share it securely yourself. No email server needed.</span></span>
+            </label>
+            <label class="flex cursor-pointer items-start gap-2.5 rounded-[var(--radius-md)] border p-3" :class="method === 'activation' ? 'border-[var(--color-primary)] bg-[var(--color-primary-subtle)]' : 'border-[var(--color-border)]'" @click="method = 'activation'">
+              <input type="radio" :checked="method === 'activation'" class="mt-0.5 h-4 w-4 accent-[var(--color-primary)]" @change="method = 'activation'" />
+              <span class="text-sm text-[var(--color-text)]">Activation — member sets their own password <span class="block text-xs text-[var(--color-text-muted)]">They enter their email at your /activate page and choose a password. One-time only.</span></span>
+            </label>
+          </div>
+        </div>
+
+        <div v-if="method === 'password'" class="flex flex-col gap-1">
+          <AppInput v-model="password" label="Password" type="password" placeholder="At least 8 characters" autocomplete="new-password" />
+          <p class="text-xs text-[var(--color-text-muted)]">You must share this password securely — it will not be emailed.</p>
+        </div>
+
         <div class="flex flex-col gap-1">
           <label class="text-xs font-medium text-[var(--color-text-muted)]">Role</label>
           <select v-model="role" class="h-12 w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm outline-none focus:border-[var(--color-primary)] focus:border-2">
@@ -166,12 +226,23 @@ async function setRole(id: string, r: string) {
             <option value="tenant_owner">Owner — full control</option>
           </select>
         </div>
+
         <p v-if="error" class="rounded-[var(--radius-sm)] border border-[var(--color-error)] bg-[var(--color-error)]/10 px-3 py-2 text-xs text-[var(--color-error)]">{{ error }}</p>
       </div>
       <template #footer>
-        <AppButton variant="ghost" @click="showAdd = false">Cancel</AppButton>
-        <AppButton variant="secondary" :disabled="adding" @click="invite"><Mail class="mr-1.5 h-4 w-4" /> Invite</AppButton>
-        <AppButton :loading="adding" @click="addByEmail"><UserPlus class="mr-1.5 h-4 w-4" /> Add</AppButton>
+        <AppButton variant="ghost" :disabled="adding" @click="showAdd = false">Cancel</AppButton>
+        <AppButton :loading="adding" @click="addMember"><UserPlus class="mr-1.5 h-4 w-4" /> Add member</AppButton>
+      </template>
+    </AppModal>
+
+    <!-- Generated password confirm -->
+    <AppModal :open="!!generated" title="Member created" description="Share this password securely with the new member. It won't be shown again." @close="generated = ''">
+      <div class="flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+        <code class="flex-1 select-all font-mono text-sm text-[var(--color-text)]">{{ generated }}</code>
+        <AppButton size="sm" variant="secondary" @click="copyGenerated">Copy</AppButton>
+      </div>
+      <template #footer>
+        <AppButton @click="generated = ''">Done</AppButton>
       </template>
     </AppModal>
 

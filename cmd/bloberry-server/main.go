@@ -107,7 +107,16 @@ func main() {
 
 	issuer := jwtutil.NewIssuer([]byte(cfg.JWTSecret))
 	sess := session.NewStore(rdb)
-	mail := mailer.Noop{Log: func(msg string) { log.Println(msg) }}
+	var mail mailer.Mailer
+	if cfg.SMTPConfigured {
+		mail = &mailer.SMTP{
+			Host: cfg.SMTPHost, Port: cfg.SMTPPort,
+			User: cfg.SMTPUser, Password: cfg.SMTPPassword,
+			From: cfg.SMTPFrom,
+		}
+	} else {
+		mail = mailer.Noop{Log: func(msg string) { log.Println(msg) }}
+	}
 
 	authRepo := authrepo.New(mdb.DB)
 	authUC := authuc.NewUsecase(auth.Deps{
@@ -151,7 +160,7 @@ func main() {
 	adminUC := adminuc.NewUsecase(adminuc.Deps{Repo: adminRepo, Registry: reg, Envelope: crypto.NewEnvelopeOrPanic(cfg.CredentialEncryptionKey), Counters: adminRepo, AllTenants: tenantRepo})
 
 	setupRepo := setuprepo.New(mdb.DB)
-	setupUC := setupuc.NewUsecase(setupuc.Deps{Repo: setupRepo, DiskRoot: envOr("DISK_STORAGE_PATH", defaultDiskRoot()), Registry: reg})
+	setupUC := setupuc.NewUsecase(setupuc.Deps{Repo: setupRepo, DiskRoot: envOr("DISK_STORAGE_PATH", defaultDiskRoot()), Registry: reg, SmtpConfigured: cfg.SMTPConfigured})
 
 	// Bootstrap: register all stored backends into the in-memory driver
 	// registry at boot so the registry survives restarts (ADR-2).
@@ -189,6 +198,8 @@ func main() {
 	r.Get("/v1/objects/{fileId}/content", func(w http.ResponseWriter, req *http.Request) {
 		handler.DownloadPublicObject(w, req, chi.URLParam(req, "fileId"))
 	})
+	// First-time activation for members added without SMTP email.
+	r.Post("/v1/auth/activate", handler.ActivateAccount)
 
 	// The generated mux owns all spec routes (public + authed). An auth-gate
 	// middleware wraps it: public paths pass through, everything else must
@@ -233,6 +244,7 @@ var publicPaths = map[string]bool{
 	"POST /auth/google":              true,
 	"POST /auth/pair/verify":         true,
 	"POST /auth/login/verify-totp":   true,
+	"POST /v1/auth/activate":         true,
 }
 
 // apiPrefixes are the top-level path prefixes the JSON API owns. Entries with a
@@ -300,6 +312,12 @@ func configLoad() (configT, error) {
 	c.MultipartPartSize = int64Env("MULTIPART_PART_SIZE", 16*1024*1024)
 	c.RateLimitRequests = intEnv("RATE_LIMIT_REQUESTS", 1000)
 	c.RateLimitWindow = durEnv("RATE_LIMIT_WINDOW", time.Hour)
+	c.SMTPHost = os.Getenv("SMTP_HOST")
+	c.SMTPPort = intEnv("SMTP_PORT", 587)
+	c.SMTPUser = os.Getenv("SMTP_USER")
+	c.SMTPPassword = os.Getenv("SMTP_PASSWORD")
+	c.SMTPFrom = os.Getenv("SMTP_FROM")
+	c.SMTPConfigured = c.SMTPHost != "" && c.SMTPFrom != ""
 	if c.JWTSecret == "" {
 		return c, errors.New("JWT_SECRET required")
 	}
@@ -322,6 +340,12 @@ type configT struct {
 	MultipartPartSize       int64
 	RateLimitRequests       int
 	RateLimitWindow         time.Duration
+	SMTPHost                string
+	SMTPPort                int
+	SMTPUser                string
+	SMTPPassword            string
+	SMTPFrom                string
+	SMTPConfigured          bool
 }
 
 func intEnv(k string, def int) int {

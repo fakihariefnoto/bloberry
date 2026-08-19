@@ -13,9 +13,10 @@ import (
 )
 
 type usecase struct {
-	repo     setup.Repository
-	diskRoot string
-	reg      registryAdapter
+	repo            setup.Repository
+	diskRoot        string
+	reg             registryAdapter
+	smtpConfigured  bool
 }
 
 // registryAdapter is the narrow registry interface setup needs: register a
@@ -25,13 +26,14 @@ type registryAdapter interface {
 }
 
 type Deps struct {
-	Repo     setup.Repository
-	DiskRoot string
-	Registry registryAdapter
+	Repo            setup.Repository
+	DiskRoot        string
+	Registry        registryAdapter
+	SmtpConfigured  bool
 }
 
 func NewUsecase(d Deps) setup.Usecase {
-	return &usecase{repo: d.Repo, diskRoot: d.DiskRoot, reg: d.Registry}
+	return &usecase{repo: d.Repo, diskRoot: d.DiskRoot, reg: d.Registry, smtpConfigured: d.SmtpConfigured}
 }
 
 var _ setup.Usecase = (*usecase)(nil)
@@ -41,7 +43,7 @@ func (u *usecase) Status(ctx context.Context) (*setup.Status, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &setup.Status{NeedsSetup: n == 0}, nil
+	return &setup.Status{NeedsSetup: n == 0, SmtpConfigured: u.smtpConfigured}, nil
 }
 
 func (u *usecase) Run(ctx context.Context, email, password, displayName, tenantName, tenantSlug string) error {

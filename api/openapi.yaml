@@ -295,6 +295,38 @@ paths:
           $ref: '#/components/responses/AuthTokens'
         '400':
           $ref: '#/components/responses/ErrorResponse'
+  /auth/activate:
+    post:
+      operationId: activateAccount
+      summary: Set the first password for a member added without SMTP email
+      description: >
+        One-time activation. Only works for an email an admin already added to
+        a project with method=activation (no password yet). Setting a password
+        here activates the account; the same email can never activate again.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 8
+                display_name:
+                  type: string
+                platform:
+                  $ref: '#/components/schemas/Platform'
+      responses:
+        '200':
+          $ref: '#/components/responses/AuthTokens'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
   /auth/config/issue:
     post:
       operationId: issueConfigFile
@@ -475,6 +507,11 @@ paths:
     post:
       operationId: addMember
       summary: Add a member to a tenant
+      description: >
+        Methods: "invite" (default) requires the user to exist or SMTP email;
+        "password" auto-registers the user with an admin-chosen password (no
+        email server needed); "activation" registers a password-less user who
+        activates once via POST /auth/activate.
       parameters:
         - $ref: '#/components/parameters/TenantId'
       requestBody:
@@ -492,6 +529,13 @@ paths:
                   description: Look up the user by email instead of user_id
                 role:
                   $ref: '#/components/schemas/Role'
+                method:
+                  type: string
+                  enum: [invite, password, activation]
+                password:
+                  type: string
+                  description: Required when method=password
+                  minLength: 8
       responses:
         '201':
           description: Member added

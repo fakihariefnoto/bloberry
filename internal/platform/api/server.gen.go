@@ -326,6 +326,27 @@ func (e UpdateTenantJSONBodyStatus) Valid() bool {
 	}
 }
 
+// Defines values for AddMemberJSONBodyMethod.
+const (
+	Activation AddMemberJSONBodyMethod = "activation"
+	Invite     AddMemberJSONBodyMethod = "invite"
+	Password   AddMemberJSONBodyMethod = "password"
+)
+
+// Valid indicates whether the value is a known member of the AddMemberJSONBodyMethod enum.
+func (e AddMemberJSONBodyMethod) Valid() bool {
+	switch e {
+	case Activation:
+		return true
+	case Invite:
+		return true
+	case Password:
+		return true
+	default:
+		return false
+	}
+}
+
 // Envelope defines model for Envelope.
 type Envelope struct {
 	Data     interface{} `json:"data,omitempty"`
@@ -472,6 +493,14 @@ type ListAuditEventsParams struct {
 	Action     *string `form:"action,omitempty" json:"action,omitempty"`
 	Limit      *int    `form:"limit,omitempty" json:"limit,omitempty"`
 	Cursor     *string `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
+
+// ActivateAccountJSONBody defines parameters for ActivateAccount.
+type ActivateAccountJSONBody struct {
+	DisplayName *string             `json:"display_name,omitempty"`
+	Email       openapi_types.Email `json:"email"`
+	Password    string              `json:"password"`
+	Platform    *Platform           `json:"platform,omitempty"`
 }
 
 // IssueConfigFileJSONBody defines parameters for IssueConfigFile.
@@ -692,10 +721,17 @@ type CreateInvitationJSONBody struct {
 // AddMemberJSONBody defines parameters for AddMember.
 type AddMemberJSONBody struct {
 	// Email Look up the user by email instead of user_id
-	Email  *string `json:"email,omitempty"`
-	Role   Role    `json:"role"`
-	UserId *string `json:"user_id,omitempty"`
+	Email  *string                  `json:"email,omitempty"`
+	Method *AddMemberJSONBodyMethod `json:"method,omitempty"`
+
+	// Password Required when method=password
+	Password *string `json:"password,omitempty"`
+	Role     Role    `json:"role"`
+	UserId   *string `json:"user_id,omitempty"`
 }
+
+// AddMemberJSONBodyMethod defines parameters for AddMember.
+type AddMemberJSONBodyMethod string
 
 // UpdateMemberJSONBody defines parameters for UpdateMember.
 type UpdateMemberJSONBody struct {
@@ -735,6 +771,9 @@ type CreateBundleJSONRequestBody CreateBundleJSONBody
 
 // ExtractArchiveJSONRequestBody defines body for ExtractArchive for application/json ContentType.
 type ExtractArchiveJSONRequestBody ExtractArchiveJSONBody
+
+// ActivateAccountJSONRequestBody defines body for ActivateAccount for application/json ContentType.
+type ActivateAccountJSONRequestBody ActivateAccountJSONBody
 
 // IssueConfigFileJSONRequestBody defines body for IssueConfigFile for application/json ContentType.
 type IssueConfigFileJSONRequestBody IssueConfigFileJSONBody
@@ -897,6 +936,9 @@ type ServerInterface interface {
 	// ListAuditEvents Query the tenant audit log
 	// (GET /audit)
 	ListAuditEvents(w http.ResponseWriter, r *http.Request, params ListAuditEventsParams)
+	// ActivateAccount Set the first password for a member added without SMTP email
+	// (POST /auth/activate)
+	ActivateAccount(w http.ResponseWriter, r *http.Request)
 	// IssueConfigFile Mint a server-signed config payload (M23)
 	// (POST /auth/config/issue)
 	IssueConfigFile(w http.ResponseWriter, r *http.Request)
@@ -1209,6 +1251,12 @@ func (_ Unimplemented) ExtractArchive(w http.ResponseWriter, r *http.Request) {
 // ListAuditEvents Query the tenant audit log
 // (GET /audit)
 func (_ Unimplemented) ListAuditEvents(w http.ResponseWriter, r *http.Request, params ListAuditEventsParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ActivateAccount Set the first password for a member added without SMTP email
+// (POST /auth/activate)
+func (_ Unimplemented) ActivateAccount(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -2028,6 +2076,20 @@ func (siw *ServerInterfaceWrapper) ListAuditEvents(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListAuditEvents(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ActivateAccount operation middleware
+func (siw *ServerInterfaceWrapper) ActivateAccount(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ActivateAccount(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -3592,6 +3654,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/auth/pair/verify", wrapper.VerifyPairToken)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/auth/activate", wrapper.ActivateAccount)
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/auth/config/issue", wrapper.IssueConfigFile)

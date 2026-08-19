@@ -33,6 +33,8 @@ const (
 	ErrLinkExpired        Code = "link_expired"
 	ErrPayloadTooLarge    Code = "payload_too_large"
 	ErrInviteInvalid      Code = "invite_invalid"
+	ErrActivationInvalid  Code = "activation_invalid"
+	ErrMemberExists       Code = "member_exists"
 	ErrResetTokenInvalid  Code = "reset_token_invalid"
 	ErrRateLimited        Code = "rate_limited"
 	ErrNotFound           Code = "not_found"

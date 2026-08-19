@@ -31,8 +31,7 @@ const (
 	maxOtpAttempts = 5
 )
 
-func (u *usecase) Signup(ctx context.Context, inviteToken, email, password, displayName, platform string) (*auth.TokenResult, error) {
-	hash := crypto.HashToken(inviteToken)
+func (u *usecase) Signup(ctx context.Context, inviteToken, email, password, displayName, platform string) (*auth.TokenResult, error) {	hash := crypto.HashToken(inviteToken)
 	inv, err := u.d.Repo.GetInvitationByTokenHash(ctx, hash)
 	if err != nil {
 		return nil, httpx.NewError(httpx.ErrInviteInvalid, 400)
@@ -66,6 +65,75 @@ func (u *usecase) Signup(ctx context.Context, inviteToken, email, password, disp
 	}
 	_ = u.d.Repo.MarkInvitationAccepted(ctx, inv.ID)
 	return u.issueTokens(ctx, usr, platform)
+}
+
+// Activate sets a first-time password for a user who was added as a project
+// member without SMTP email (the admin auto-registered them). It only works
+// once: if the user already has a password (or was created with one), it
+// rejects. Returns the user so the handler can issue tokens.
+func (u *usecase) Activate(ctx context.Context, email, password, displayName, platform string) (*auth.TokenResult, error) {
+	if email == "" || len(password) < 8 {
+		return nil, httpx.NewError(httpx.ErrBadRequest, 400)
+	}
+	usr, err := u.d.Users.GetByEmail(ctx, email)
+	if err != nil {
+		if httpx.IsNotFound(err) {
+			// No pre-registered account for this email — activation is only
+			// for members an admin already added.
+			return nil, httpx.NewErrorContent(httpx.ErrActivationInvalid, 403, "No pending account for this email. Ask a project admin to add you first.")
+		}
+		return nil, err
+	}
+	if usr.PasswordHash != nil && *usr.PasswordHash != "" {
+		return nil, httpx.NewErrorContent(httpx.ErrActivationInvalid, 403, "This account is already activated. Use the forgot-password flow instead.")
+	}
+	ph, err := crypto.HashPassword(password)
+	if err != nil {
+		return nil, err
+	}
+	usr.PasswordHash = &ph
+	if displayName != "" {
+		usr.DisplayName = displayName
+	}
+	if err := u.d.Users.Update(ctx, usr); err != nil {
+		return nil, err
+	}
+	return u.issueTokens(ctx, usr, platform)
+}
+
+// RegisterMember creates a user with an admin-provided password and adds them
+// to a project, bypassing email invitations (used when SMTP is not configured).
+func (u *usecase) RegisterMember(ctx context.Context, email, password, displayName, tenantID, role string) (*auth.TokenResult, error) {
+	if email == "" || len(password) < 8 {
+		return nil, httpx.NewError(httpx.ErrBadRequest, 400)
+	}
+	usr, err := u.d.Users.GetByEmail(ctx, email)
+	if err != nil {
+		if !httpx.IsNotFound(err) {
+			return nil, err
+		}
+		ph, err := crypto.HashPassword(password)
+		if err != nil {
+			return nil, err
+		}
+		usr = &domain.User{Email: email, PasswordHash: &ph, DisplayName: displayName}
+		if err := u.d.Users.Insert(ctx, usr); err != nil {
+			return nil, err
+		}
+	} else if usr.PasswordHash == nil || *usr.PasswordHash == "" {
+		ph, err := crypto.HashPassword(password)
+		if err != nil {
+			return nil, err
+		}
+		usr.PasswordHash = &ph
+		_ = u.d.Users.Update(ctx, usr)
+	}
+	if err := u.d.Repo.InsertMembership(ctx, &domain.Membership{
+		UserID: usr.ID, TenantID: tenantID, Role: role,
+	}); err != nil {
+		return nil, httpx.NewError(httpx.ErrMemberExists, 409)
+	}
+	return &auth.TokenResult{User: usr}, nil
 }
 
 func (u *usecase) Login(ctx context.Context, email, password, platform string) (*auth.TokenResult, error) {

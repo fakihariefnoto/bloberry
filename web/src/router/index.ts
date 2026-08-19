@@ -6,6 +6,7 @@ const routes = [
   { path: '/setup', name: 'setup', component: () => import('../pages/SetupPage.vue'), meta: { public: true } },
   { path: '/login', name: 'login', component: () => import('../pages/LoginPage.vue'), meta: { public: true } },
   { path: '/login/otp', name: 'otp-login', component: () => import('../pages/OtpLoginPage.vue'), meta: { public: true } },
+  { path: '/activate', name: 'activate', component: () => import('../pages/ActivatePage.vue'), meta: { public: true } },
   { path: '/forgot-password', name: 'forgot-password', component: () => import('../pages/ForgotPasswordPage.vue'), meta: { public: true } },
   { path: '/reset-password', name: 'reset-password', component: () => import('../pages/ResetPasswordPage.vue'), meta: { public: true } },
   { path: '/invite/:token', name: 'accept-invitation', component: () => import('../pages/AcceptInvitationPage.vue'), meta: { public: true } },

@@ -330,6 +330,27 @@ func (e UpdateTenantJSONBodyStatus) Valid() bool {
 	}
 }
 
+// Defines values for AddMemberJSONBodyMethod.
+const (
+	Activation AddMemberJSONBodyMethod = "activation"
+	Invite     AddMemberJSONBodyMethod = "invite"
+	Password   AddMemberJSONBodyMethod = "password"
+)
+
+// Valid indicates whether the value is a known member of the AddMemberJSONBodyMethod enum.
+func (e AddMemberJSONBodyMethod) Valid() bool {
+	switch e {
+	case Activation:
+		return true
+	case Invite:
+		return true
+	case Password:
+		return true
+	default:
+		return false
+	}
+}
+
 // Envelope defines model for Envelope.
 type Envelope struct {
 	Data     interface{} `json:"data,omitempty"`
@@ -476,6 +497,14 @@ type ListAuditEventsParams struct {
 	Action     *string `form:"action,omitempty" json:"action,omitempty"`
 	Limit      *int    `form:"limit,omitempty" json:"limit,omitempty"`
 	Cursor     *string `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
+
+// ActivateAccountJSONBody defines parameters for ActivateAccount.
+type ActivateAccountJSONBody struct {
+	DisplayName *string             `json:"display_name,omitempty"`
+	Email       openapi_types.Email `json:"email"`
+	Password    string              `json:"password"`
+	Platform    *Platform           `json:"platform,omitempty"`
 }
 
 // IssueConfigFileJSONBody defines parameters for IssueConfigFile.
@@ -696,10 +725,17 @@ type CreateInvitationJSONBody struct {
 // AddMemberJSONBody defines parameters for AddMember.
 type AddMemberJSONBody struct {
 	// Email Look up the user by email instead of user_id
-	Email  *string `json:"email,omitempty"`
-	Role   Role    `json:"role"`
-	UserId *string `json:"user_id,omitempty"`
+	Email  *string                  `json:"email,omitempty"`
+	Method *AddMemberJSONBodyMethod `json:"method,omitempty"`
+
+	// Password Required when method=password
+	Password *string `json:"password,omitempty"`
+	Role     Role    `json:"role"`
+	UserId   *string `json:"user_id,omitempty"`
 }
+
+// AddMemberJSONBodyMethod defines parameters for AddMember.
+type AddMemberJSONBodyMethod string
 
 // UpdateMemberJSONBody defines parameters for UpdateMember.
 type UpdateMemberJSONBody struct {
@@ -739,6 +775,9 @@ type CreateBundleJSONRequestBody CreateBundleJSONBody
 
 // ExtractArchiveJSONRequestBody defines body for ExtractArchive for application/json ContentType.
 type ExtractArchiveJSONRequestBody ExtractArchiveJSONBody
+
+// ActivateAccountJSONRequestBody defines body for ActivateAccount for application/json ContentType.
+type ActivateAccountJSONRequestBody ActivateAccountJSONBody
 
 // IssueConfigFileJSONRequestBody defines body for IssueConfigFile for application/json ContentType.
 type IssueConfigFileJSONRequestBody IssueConfigFileJSONBody
@@ -1051,6 +1090,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /audit (the `ListAuditEvents` operationId).
 	ListAuditEvents(ctx context.Context, params *ListAuditEventsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ActivateAccountWithBody Set the first password for a member added without SMTP email
+	//
+	// One-time activation. Only works for an email an admin already added to a project with method=activation (no password yet). Setting a password here activates the account; the same email can never activate again.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /auth/activate (the `ActivateAccount` operationId).
+	ActivateAccountWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ActivateAccount Set the first password for a member added without SMTP email
+	//
+	// One-time activation. Only works for an email an admin already added to a project with method=activation (no password yet). Setting a password here activates the account; the same email can never activate again.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /auth/activate (the `ActivateAccount` operationId).
+	ActivateAccount(ctx context.Context, body ActivateAccountJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// IssueConfigFileWithBody Mint a server-signed config payload (M23)
 	//
@@ -1637,12 +1694,16 @@ type ClientInterface interface {
 
 	// AddMemberWithBody Add a member to a tenant
 	//
+	// Methods: "invite" (default) requires the user to exist or SMTP email; "password" auto-registers the user with an admin-chosen password (no email server needed); "activation" registers a password-less user who activates once via POST /auth/activate.
+	//
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with POST /tenants/{tenantId}/members (the `AddMember` operationId).
 	AddMemberWithBody(ctx context.Context, tenantId TenantId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// AddMember Add a member to a tenant
+	//
+	// Methods: "invite" (default) requires the user to exist or SMTP email; "password" auto-registers the user with an admin-chosen password (no email server needed); "activation" registers a password-less user who activates once via POST /auth/activate.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -2066,6 +2127,44 @@ func (c *Client) ExtractArchive(ctx context.Context, body ExtractArchiveJSONRequ
 // Corresponds with GET /audit (the `ListAuditEvents` operationId).
 func (c *Client) ListAuditEvents(ctx context.Context, params *ListAuditEventsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListAuditEventsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ActivateAccountWithBody Set the first password for a member added without SMTP email
+//
+// One-time activation. Only works for an email an admin already added to a project with method=activation (no password yet). Setting a password here activates the account; the same email can never activate again.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /auth/activate (the `ActivateAccount` operationId).
+func (c *Client) ActivateAccountWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewActivateAccountRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ActivateAccount Set the first password for a member added without SMTP email
+//
+// One-time activation. Only works for an email an admin already added to a project with method=activation (no password yet). Setting a password here activates the account; the same email can never activate again.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /auth/activate (the `ActivateAccount` operationId).
+func (c *Client) ActivateAccount(ctx context.Context, body ActivateAccountJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewActivateAccountRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -3571,6 +3670,8 @@ func (c *Client) ListMembers(ctx context.Context, tenantId TenantId, reqEditors 
 
 // AddMemberWithBody Add a member to a tenant
 //
+// Methods: "invite" (default) requires the user to exist or SMTP email; "password" auto-registers the user with an admin-chosen password (no email server needed); "activation" registers a password-less user who activates once via POST /auth/activate.
+//
 // Takes any type of body and a specified content type.
 //
 // Corresponds with POST /tenants/{tenantId}/members (the `AddMember` operationId).
@@ -3587,6 +3688,8 @@ func (c *Client) AddMemberWithBody(ctx context.Context, tenantId TenantId, conte
 }
 
 // AddMember Add a member to a tenant
+//
+// Methods: "invite" (default) requires the user to exist or SMTP email; "password" auto-registers the user with an admin-chosen password (no email server needed); "activation" registers a password-less user who activates once via POST /auth/activate.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -4450,6 +4553,46 @@ func NewListAuditEventsRequest(server string, params *ListAuditEventsParams) (*h
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewActivateAccountRequest calls the generic ActivateAccount builder with application/json body
+func NewActivateAccountRequest(server string, body ActivateAccountJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewActivateAccountRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewActivateAccountRequestWithBody constructs an http.Request for the ActivateAccount method, with any body, and a specified content type
+func NewActivateAccountRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/activate")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -7259,6 +7402,24 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /audit (the `ListAuditEvents` operationId).
 	ListAuditEventsWithResponse(ctx context.Context, params *ListAuditEventsParams, reqEditors ...RequestEditorFn) (*ListAuditEventsResponse, error)
 
+	// ActivateAccountWithBodyWithResponse Set the first password for a member added without SMTP email
+	//
+	// One-time activation. Only works for an email an admin already added to a project with method=activation (no password yet). Setting a password here activates the account; the same email can never activate again.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/activate (the `ActivateAccount` operationId).
+	ActivateAccountWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ActivateAccountResponse, error)
+
+	// ActivateAccountWithResponse Set the first password for a member added without SMTP email
+	//
+	// One-time activation. Only works for an email an admin already added to a project with method=activation (no password yet). Setting a password here activates the account; the same email can never activate again.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/activate (the `ActivateAccount` operationId).
+	ActivateAccountWithResponse(ctx context.Context, body ActivateAccountJSONRequestBody, reqEditors ...RequestEditorFn) (*ActivateAccountResponse, error)
+
 	// IssueConfigFileWithBodyWithResponse Mint a server-signed config payload (M23)
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -7900,12 +8061,16 @@ type ClientWithResponsesInterface interface {
 
 	// AddMemberWithBodyWithResponse Add a member to a tenant
 	//
+	// Methods: "invite" (default) requires the user to exist or SMTP email; "password" auto-registers the user with an admin-chosen password (no email server needed); "activation" registers a password-less user who activates once via POST /auth/activate.
+	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /tenants/{tenantId}/members (the `AddMember` operationId).
 	AddMemberWithBodyWithResponse(ctx context.Context, tenantId TenantId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddMemberResponse, error)
 
 	// AddMemberWithResponse Add a member to a tenant
+	//
+	// Methods: "invite" (default) requires the user to exist or SMTP email; "password" auto-registers the user with an admin-chosen password (no email server needed); "activation" registers a password-less user who activates once via POST /auth/activate.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -8690,6 +8855,54 @@ func (r ListAuditEventsResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ListAuditEventsResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ActivateAccountResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *AuthTokens
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *ErrorResponse
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ActivateAccountResponse) GetJSON200() *AuthTokens {
+	return r.JSON200
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r ActivateAccountResponse) GetJSON403() *ErrorResponse {
+	return r.JSON403
+}
+
+// GetBody returns the raw response body bytes
+func (r ActivateAccountResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ActivateAccountResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ActivateAccountResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ActivateAccountResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -11843,6 +12056,36 @@ func (c *ClientWithResponses) ListAuditEventsWithResponse(ctx context.Context, p
 	return ParseListAuditEventsResponse(rsp)
 }
 
+// ActivateAccountWithBodyWithResponse Set the first password for a member added without SMTP email
+//
+// One-time activation. Only works for an email an admin already added to a project with method=activation (no password yet). Setting a password here activates the account; the same email can never activate again.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/activate (the `ActivateAccount` operationId).
+func (c *ClientWithResponses) ActivateAccountWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ActivateAccountResponse, error) {
+	rsp, err := c.ActivateAccountWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseActivateAccountResponse(rsp)
+}
+
+// ActivateAccountWithResponse Set the first password for a member added without SMTP email
+//
+// One-time activation. Only works for an email an admin already added to a project with method=activation (no password yet). Setting a password here activates the account; the same email can never activate again.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/activate (the `ActivateAccount` operationId).
+func (c *ClientWithResponses) ActivateAccountWithResponse(ctx context.Context, body ActivateAccountJSONRequestBody, reqEditors ...RequestEditorFn) (*ActivateAccountResponse, error) {
+	rsp, err := c.ActivateAccount(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseActivateAccountResponse(rsp)
+}
+
 // IssueConfigFileWithBodyWithResponse Mint a server-signed config payload (M23)
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -13030,6 +13273,8 @@ func (c *ClientWithResponses) ListMembersWithResponse(ctx context.Context, tenan
 
 // AddMemberWithBodyWithResponse Add a member to a tenant
 //
+// Methods: "invite" (default) requires the user to exist or SMTP email; "password" auto-registers the user with an admin-chosen password (no email server needed); "activation" registers a password-less user who activates once via POST /auth/activate.
+//
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
 // Corresponds with POST /tenants/{tenantId}/members (the `AddMember` operationId).
@@ -13042,6 +13287,8 @@ func (c *ClientWithResponses) AddMemberWithBodyWithResponse(ctx context.Context,
 }
 
 // AddMemberWithResponse Add a member to a tenant
+//
+// Methods: "invite" (default) requires the user to exist or SMTP email; "password" auto-registers the user with an admin-chosen password (no email server needed); "activation" registers a password-less user who activates once via POST /auth/activate.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -13631,6 +13878,39 @@ func ParseListAuditEventsResponse(rsp *http.Response) (*ListAuditEventsResponse,
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseActivateAccountResponse parses an HTTP response from a ActivateAccountWithResponse call
+func ParseActivateAccountResponse(rsp *http.Response) (*ActivateAccountResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ActivateAccountResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AuthTokens
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	}
 

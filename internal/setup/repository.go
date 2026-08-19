@@ -17,7 +17,8 @@ type Repository interface {
 }
 
 type Status struct {
-	NeedsSetup bool `json:"needs_setup"`
+	NeedsSetup     bool `json:"needs_setup"`
+	SmtpConfigured bool `json:"smtp_configured"`
 }
 
 // Usecase — first-run initialization. Runs once on a fresh install:

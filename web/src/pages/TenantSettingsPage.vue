@@ -19,6 +19,10 @@ const error = ref('')
 const saved = ref('')
 const loadingBackends = ref(false)
 
+// Upload extension policy (project level): default | allow | block.
+const policyMode = ref('default')
+const policyExts = ref('')
+
 // Engines the tenant can actually use: install-level + tenant-owned + assigned.
 const availableEngines = computed(() => {
   const own = allEngines.value.filter((b) => b.tenant_id === tenants.currentId || !b.tenant_id)
@@ -44,6 +48,8 @@ onMounted(async () => {
   if (tenants.current) {
     name.value = tenants.current.name
     quotaBytes.value = String(tenants.current.quota_bytes)
+    policyMode.value = tenants.current.upload_policy?.mode || 'default'
+    policyExts.value = (tenants.current.upload_policy?.extensions || []).join(', ')
   }
   await loadEngines()
 })
@@ -65,6 +71,10 @@ async function save() {
       name: name.value,
       quota_bytes: Number(quotaBytes.value) || 0,
       storage_engines: assignedIds.value,
+      upload_policy: {
+        mode: policyMode.value,
+        extensions: policyExts.value.split(',').map((e) => e.trim().toLowerCase()).filter(Boolean),
+      },
     }
     if (defaultId.value) payload.default_storage_id = defaultId.value
     await api.patch(`/tenants/${tenants.currentId}`, payload)
@@ -113,6 +123,25 @@ async function save() {
             Install-level and this project's own engines are always available.
           </p>
           <p v-if="!availableEngines.length" class="text-xs text-[var(--color-warning)]">No storage engines registered yet — ask a platform admin to add one.</p>
+        </div>
+
+        <!-- Upload extension policy -->
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs font-medium text-[var(--color-text-muted)]">Allowed upload types</label>
+          <select v-model="policyMode" class="h-12 w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm outline-none focus:border-[var(--color-primary)] focus:border-2">
+            <option value="default">Default — block executable files (safe)</option>
+            <option value="allow">Allowlist — only the listed extensions</option>
+            <option value="block">Blocklist — forbid the listed extensions</option>
+          </select>
+          <input
+            v-model="policyExts"
+            :disabled="policyMode === 'default'"
+            placeholder="png, jpg, pdf, mp4 (comma-separated)"
+            class="h-12 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm outline-none focus:border-[var(--color-primary)] focus:border-2 disabled:opacity-50"
+          />
+          <p class="text-xs leading-relaxed text-[var(--color-text-muted)]">
+            Folder-level policies can override this per folder. Executable extensions (.php, .sh, .js, .html, .svg…) are never served inline.
+          </p>
         </div>
 
         <p v-if="error" class="rounded-[var(--radius-sm)] border border-[var(--color-error)] bg-[var(--color-error)]/10 px-3 py-2 text-xs text-[var(--color-error)]">{{ error }}</p>

@@ -37,5 +37,6 @@ type Usecase interface {
 	Rename(ctx context.Context, tenantID, id, name string) (*domain.Folder, error)
 	Move(ctx context.Context, tenantID, id, targetParentID string) (*domain.Folder, error)
 	Delete(ctx context.Context, tenantID, id string) error
+	SetPolicy(ctx context.Context, tenantID, id string, p *domain.UploadPolicy) (*domain.Folder, error)
 	ListChildren(ctx context.Context, tenantID string, parentID *string) ([]domain.Folder, error)
 }

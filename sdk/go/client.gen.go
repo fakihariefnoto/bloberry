@@ -147,6 +147,27 @@ func (e Role) Valid() bool {
 	}
 }
 
+// Defines values for UploadPolicyMode.
+const (
+	Allow   UploadPolicyMode = "allow"
+	Block   UploadPolicyMode = "block"
+	Default UploadPolicyMode = "default"
+)
+
+// Valid indicates whether the value is a known member of the UploadPolicyMode enum.
+func (e UploadPolicyMode) Valid() bool {
+	switch e {
+	case Allow:
+		return true
+	case Block:
+		return true
+	case Default:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CreateBackendJSONBodyDriver.
 const (
 	Azblob CreateBackendJSONBodyDriver = "azblob"
@@ -345,6 +366,16 @@ type SignupRequest struct {
 	Password    string              `json:"password"`
 }
 
+// UploadPolicy Extension policy for a project or folder. Modes: "default" uses the built-in executable-extension blocklist; "allow" permits only the listed extensions; "block" forbids the listed extensions on top of the built-in list. Folder policy overrides project policy.
+type UploadPolicy struct {
+	// Extensions Dot-less extensions, e.g. ["png", "jpg", "pdf"]
+	Extensions *[]string         `json:"extensions,omitempty"`
+	Mode       *UploadPolicyMode `json:"mode,omitempty"`
+}
+
+// UploadPolicyMode defines model for UploadPolicy.Mode.
+type UploadPolicyMode string
+
 // ApplicationId defines model for ApplicationId.
 type ApplicationId = string
 
@@ -514,7 +545,10 @@ type CreateFolderJSONBody struct {
 
 // RenameFolderJSONBody defines parameters for RenameFolder.
 type RenameFolderJSONBody struct {
-	Name string `json:"name"`
+	Name *string `json:"name,omitempty"`
+
+	// UploadPolicy Extension policy for a project or folder. Modes: "default" uses the built-in executable-extension blocklist; "allow" permits only the listed extensions; "block" forbids the listed extensions on top of the built-in list. Folder policy overrides project policy.
+	UploadPolicy *UploadPolicy `json:"upload_policy,omitempty"`
 }
 
 // MoveFolderJSONBody defines parameters for MoveFolder.
@@ -645,6 +679,9 @@ type UpdateTenantJSONBody struct {
 	QuotaBytes       *int                        `json:"quota_bytes,omitempty"`
 	QuotaObjects     *int                        `json:"quota_objects,omitempty"`
 	Status           *UpdateTenantJSONBodyStatus `json:"status,omitempty"`
+
+	// UploadPolicy Extension policy for a project or folder. Modes: "default" uses the built-in executable-extension blocklist; "allow" permits only the listed extensions; "block" forbids the listed extensions on top of the built-in list. Folder policy overrides project policy.
+	UploadPolicy *UploadPolicy `json:"upload_policy,omitempty"`
 }
 
 // UpdateTenantJSONBodyStatus defines parameters for UpdateTenant.
@@ -1236,14 +1273,14 @@ type ClientInterface interface {
 	// Corresponds with GET /folders/{folderId} (the `GetFolder` operationId).
 	GetFolder(ctx context.Context, folderId FolderId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// RenameFolderWithBody Rename a folder
+	// RenameFolderWithBody Rename a folder or update its upload policy
 	//
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with PATCH /folders/{folderId} (the `RenameFolder` operationId).
 	RenameFolderWithBody(ctx context.Context, folderId FolderId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// RenameFolder Rename a folder
+	// RenameFolder Rename a folder or update its upload policy
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -2590,7 +2627,7 @@ func (c *Client) GetFolder(ctx context.Context, folderId FolderId, reqEditors ..
 	return c.Client.Do(req)
 }
 
-// RenameFolderWithBody Rename a folder
+// RenameFolderWithBody Rename a folder or update its upload policy
 //
 // Takes any type of body and a specified content type.
 //
@@ -2607,7 +2644,7 @@ func (c *Client) RenameFolderWithBody(ctx context.Context, folderId FolderId, co
 	return c.Client.Do(req)
 }
 
-// RenameFolder Rename a folder
+// RenameFolder Rename a folder or update its upload policy
 //
 // Takes a body of the `application/json` content type.
 //
@@ -7453,14 +7490,14 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /folders/{folderId} (the `GetFolder` operationId).
 	GetFolderWithResponse(ctx context.Context, folderId FolderId, reqEditors ...RequestEditorFn) (*GetFolderResponse, error)
 
-	// RenameFolderWithBodyWithResponse Rename a folder
+	// RenameFolderWithBodyWithResponse Rename a folder or update its upload policy
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with PATCH /folders/{folderId} (the `RenameFolder` operationId).
 	RenameFolderWithBodyWithResponse(ctx context.Context, folderId FolderId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RenameFolderResponse, error)
 
-	// RenameFolderWithResponse Rename a folder
+	// RenameFolderWithResponse Rename a folder or update its upload policy
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -12235,7 +12272,7 @@ func (c *ClientWithResponses) GetFolderWithResponse(ctx context.Context, folderI
 	return ParseGetFolderResponse(rsp)
 }
 
-// RenameFolderWithBodyWithResponse Rename a folder
+// RenameFolderWithBodyWithResponse Rename a folder or update its upload policy
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -12248,7 +12285,7 @@ func (c *ClientWithResponses) RenameFolderWithBodyWithResponse(ctx context.Conte
 	return ParseRenameFolderResponse(rsp)
 }
 
-// RenameFolderWithResponse Rename a folder
+// RenameFolderWithResponse Rename a folder or update its upload policy
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //

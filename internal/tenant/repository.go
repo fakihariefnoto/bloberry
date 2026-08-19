@@ -47,6 +47,7 @@ type Update struct {
 	DefaultBackendID *string
 	StorageEngines  *[]string
 	Status          *string
+	UploadPolicy    *domain.UploadPolicy
 }
 
 // Usecase is the tenant domain service.

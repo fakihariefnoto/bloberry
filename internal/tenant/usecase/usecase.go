@@ -76,6 +76,9 @@ func (u *usecase) Update(ctx context.Context, tenantID string, upd tenant.Update
 	if upd.Status != nil {
 		t.Status = *upd.Status
 	}
+	if upd.UploadPolicy != nil {
+		t.UploadPolicy = upd.UploadPolicy
+	}
 	if err := u.repo.Update(ctx, t); err != nil {
 		return nil, err
 	}

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Folder, FileText, ChevronRight, Upload, RefreshCw, Globe, HardDrive, Trash2, X } from 'lucide-vue-next'
+import { Folder, FileText, ChevronRight, Upload, RefreshCw, Globe, HardDrive, Trash2, X, SlidersHorizontal } from 'lucide-vue-next'
 import { api } from '../lib/api'
 import { useTenantStore } from '../stores/tenant'
 import AppButton from '../components/ui/AppButton.vue'
@@ -291,6 +291,38 @@ const showDeleteFolder = ref(false)
 const folderToDelete = ref<FolderRec | null>(null)
 const deletingFolder = ref(false)
 
+// Folder upload-policy settings — overrides the project policy for this subtree.
+const showFolderSettings = ref(false)
+const folderToEdit = ref<FolderRec | null>(null)
+const folderPolicyMode = ref('default')
+const folderPolicyExts = ref('')
+const savingFolderPolicy = ref(false)
+const folderPolicyError = ref('')
+
+function askFolderSettings(f: FolderRec) {
+  folderToEdit.value = f
+  folderPolicyMode.value = 'default'
+  folderPolicyExts.value = ''
+  showFolderSettings.value = true
+}
+
+async function saveFolderPolicy() {
+  const f = folderToEdit.value
+  if (!f) return
+  folderPolicyError.value = ''
+  savingFolderPolicy.value = true
+  try {
+    await api.patch(`/folders/${f.id}`, {
+      upload_policy: {
+        mode: folderPolicyMode.value,
+        extensions: folderPolicyExts.value.split(',').map((e) => e.trim().toLowerCase()).filter(Boolean),
+      },
+    })
+    showFolderSettings.value = false
+    folderToEdit.value = null
+  } catch (e) { folderPolicyError.value = (e as Error).message } finally { savingFolderPolicy.value = false }
+}
+
 function askDeleteFolder(f: FolderRec) {
   folderToDelete.value = f
   showDeleteFolder.value = true
@@ -384,9 +416,14 @@ async function doDeleteFolder() {
             <td class="px-3 py-2.5 text-[var(--color-text-muted)]">—</td>
             <td class="px-3 py-2.5"></td>
             <td class="px-3 py-2.5" @click.stop>
-              <button class="text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-error)]" :title="`Delete folder ${f.name}`" @click="askDeleteFolder(f)">
-                <Trash2 class="h-4 w-4" />
-              </button>
+              <div class="flex items-center justify-end gap-2">
+                <button class="text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-primary)]" :title="`Settings for ${f.name}`" @click="askFolderSettings(f)">
+                  <SlidersHorizontal class="h-4 w-4" />
+                </button>
+                <button class="text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-error)]" :title="`Delete folder ${f.name}`" @click="askDeleteFolder(f)">
+                  <Trash2 class="h-4 w-4" />
+                </button>
+              </div>
             </td>
           </tr>
           <tr
@@ -441,6 +478,28 @@ async function doDeleteFolder() {
       <template #footer>
         <AppButton variant="ghost" :disabled="deletingFolder" @click="showDeleteFolder = false">Cancel</AppButton>
         <AppButton variant="destructive" :loading="deletingFolder" @click="doDeleteFolder"><Trash2 class="mr-2 h-4 w-4" /> Delete folder</AppButton>
+      </template>
+    </AppModal>
+
+    <!-- Folder settings: upload-policy override -->
+    <AppModal :open="showFolderSettings" :title="`Settings — ${folderToEdit?.name}`" description="Override the project's allowed upload types for this folder and its subfolders." @close="showFolderSettings = false">
+      <div class="flex flex-col gap-3">
+        <select v-model="folderPolicyMode" class="h-12 w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm outline-none focus:border-[var(--color-primary)] focus:border-2">
+          <option value="default">Default — inherit project policy</option>
+          <option value="allow">Allowlist — only the listed extensions</option>
+          <option value="block">Blocklist — forbid the listed extensions</option>
+        </select>
+        <input
+          v-model="folderPolicyExts"
+          :disabled="folderPolicyMode === 'default'"
+          placeholder="png, jpg, pdf, mp4 (comma-separated)"
+          class="h-12 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm outline-none focus:border-[var(--color-primary)] focus:border-2 disabled:opacity-50"
+        />
+        <p v-if="folderPolicyError" class="rounded-[var(--radius-sm)] border border-[var(--color-error)] bg-[var(--color-error)]/10 px-3 py-2 text-xs text-[var(--color-error)]">{{ folderPolicyError }}</p>
+      </div>
+      <template #footer>
+        <AppButton variant="ghost" :disabled="savingFolderPolicy" @click="showFolderSettings = false">Cancel</AppButton>
+        <AppButton :loading="savingFolderPolicy" @click="saveFolderPolicy">Save policy</AppButton>
       </template>
     </AppModal>
 

@@ -12,6 +12,7 @@ export interface Tenant {
   status: string
   default_storage_id?: string
   storage_engines?: string[]
+  upload_policy?: { mode: string; extensions?: string[] }
 }
 
 export interface Membership {

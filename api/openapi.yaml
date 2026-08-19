@@ -450,6 +450,8 @@ paths:
                 status:
                   type: string
                   enum: [active, suspended]
+                upload_policy:
+                  $ref: '#/components/schemas/UploadPolicy'
       responses:
         '200':
           description: Updated tenant
@@ -612,7 +614,7 @@ paths:
                 $ref: '#/components/schemas/Envelope'
     patch:
       operationId: renameFolder
-      summary: Rename a folder
+      summary: Rename a folder or update its upload policy
       parameters:
         - $ref: '#/components/parameters/FolderId'
       requestBody:
@@ -621,10 +623,11 @@ paths:
           application/json:
             schema:
               type: object
-              required: [name]
               properties:
                 name:
                   type: string
+                upload_policy:
+                  $ref: '#/components/schemas/UploadPolicy'
       responses:
         '200':
           description: Folder renamed
@@ -1673,6 +1676,22 @@ components:
     Platform:
       type: string
       enum: [web, mobile, desktop]
+    UploadPolicy:
+      type: object
+      description: >
+        Extension policy for a project or folder. Modes: "default" uses the
+        built-in executable-extension blocklist; "allow" permits only the
+        listed extensions; "block" forbids the listed extensions on top of
+        the built-in list. Folder policy overrides project policy.
+      properties:
+        mode:
+          type: string
+          enum: [default, allow, block]
+        extensions:
+          type: array
+          items:
+            type: string
+          description: Dot-less extensions, e.g. ["png", "jpg", "pdf"]
     Role:
       type: string
       enum: [tenant_owner, tenant_admin, member, viewer]

@@ -92,12 +92,10 @@ func (u *usecase) backendFor(ctx context.Context, tenantID, backendID string) (*
 	return be, drv, nil
 }
 
-// rejectUnsafeName blocks uploads whose filename implies executable content.
-// The file bytes are also served with nosniff + content-type allowlist, but a
-// double barrier (extension gate at upload + safe headers at serve) means an
-// uploaded shell can neither be stored under a misleading name nor executed
-// when a public link is hit.
-var dangerousExts = map[string]bool{
+// globalBlockedExts is the built-in blocklist used when no project/folder
+// policy is configured ("default" mode). Executable or script-capable
+// extensions are never storable under their true extension.
+var globalBlockedExts = map[string]bool{
 	".php": true, ".php3": true, ".php4": true, ".php5": true, ".phtml": true,
 	".asp": true, ".aspx": true, ".jsp": true, ".cgi": true, ".pl": true, ".py": true,
 	".sh": true, ".bash": true, ".zsh": true, ".bat": true, ".cmd": true, ".com": true,
@@ -106,23 +104,58 @@ var dangerousExts = map[string]bool{
 	".jar": true, ".war": true, ".apk": true, ".class": true, ".ps1": true,
 }
 
-func rejectUnsafeName(name string) error {
-	ext := strings.ToLower(filepath.Ext(name))
-	if dangerousExts[ext] {
-		return httpx.NewErrorContent(httpx.ErrBadRequest, 400, "upload blocked: ."+strings.TrimPrefix(ext, ".")+" files can carry executable content")
+// effectivePolicy resolves the extension policy for an upload:
+// folder policy (deepest wins) > project policy > default built-in blocklist.
+func (u *usecase) effectivePolicy(ctx context.Context, tenantID string, folder *domain.Folder) *domain.UploadPolicy {
+	if folder != nil && folder.UploadPolicy != nil && folder.UploadPolicy.Mode != "" {
+		return folder.UploadPolicy
 	}
-	return nil
+	if t, err := u.tenants.Get(ctx, tenantID); err == nil && t.UploadPolicy != nil && t.UploadPolicy.Mode != "" {
+		return t.UploadPolicy
+	}
+	return &domain.UploadPolicy{Mode: "default"}
+}
+
+// checkUploadPolicy validates a filename against the effective policy.
+// Modes: default → global blocklist; block → blocklist + policy list;
+// allow → ONLY the listed extensions.
+func checkUploadPolicy(name string, p *domain.UploadPolicy) error {
+	ext := strings.ToLower(filepath.Ext(name))
+	switch p.Mode {
+	case "allow":
+		for _, e := range p.Extensions {
+			if strings.EqualFold("."+strings.TrimPrefix(e, "."), ext) {
+				return nil
+			}
+		}
+		return httpx.NewErrorContent(httpx.ErrBadRequest, 400, "upload blocked: ."+strings.TrimPrefix(ext, ".")+" is not in this folder's allowed list")
+	case "block":
+		if globalBlockedExts[ext] {
+			return httpx.NewErrorContent(httpx.ErrBadRequest, 400, "upload blocked: ."+strings.TrimPrefix(ext, ".")+" files can carry executable content")
+		}
+		for _, e := range p.Extensions {
+			if strings.EqualFold("."+strings.TrimPrefix(e, "."), ext) {
+				return httpx.NewErrorContent(httpx.ErrBadRequest, 400, "upload blocked: ."+strings.TrimPrefix(ext, ".")+" is not allowed in this folder")
+			}
+		}
+		return nil
+	default: // "default"
+		if globalBlockedExts[ext] {
+			return httpx.NewErrorContent(httpx.ErrBadRequest, 400, "upload blocked: ."+strings.TrimPrefix(ext, ".")+" files can carry executable content")
+		}
+		return nil
+	}
 }
 
 func (u *usecase) PresignPut(ctx context.Context, tenantID, folderID, name, backendID string, overwrite bool, size int64, contentType string, principalID string) (*object.PresignResult, error) {
 	if size > u.maxSize {
 		return nil, httpx.NewError(httpx.ErrPayloadTooLarge, 413)
 	}
-	if err := rejectUnsafeName(name); err != nil {
-		return nil, err
-	}
 	folder, err := u.folders.Get(ctx, tenantID, resolveFolderID(ctx, u.folders, tenantID, folderID))
 	if err != nil {
+		return nil, err
+	}
+	if err := checkUploadPolicy(name, u.effectivePolicy(ctx, tenantID, folder)); err != nil {
 		return nil, err
 	}
 	if err := u.quota.CheckQuota(ctx, tenantID, size, 1); err != nil {
@@ -229,11 +262,11 @@ func (u *usecase) MultipartInit(ctx context.Context, tenantID, folderID, name, b
 	if size > u.maxSize {
 		return nil, httpx.NewError(httpx.ErrPayloadTooLarge, 413)
 	}
-	if err := rejectUnsafeName(name); err != nil {
-		return nil, err
-	}
 	folder, err := u.folders.Get(ctx, tenantID, resolveFolderID(ctx, u.folders, tenantID, folderID))
 	if err != nil {
+		return nil, err
+	}
+	if err := checkUploadPolicy(name, u.effectivePolicy(ctx, tenantID, folder)); err != nil {
 		return nil, err
 	}
 	if err := u.quota.CheckQuota(ctx, tenantID, size, 1); err != nil {

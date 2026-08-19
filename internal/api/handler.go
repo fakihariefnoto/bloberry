@@ -510,6 +510,7 @@ func (h *Handler) UpdateTenant(w http.ResponseWriter, r *http.Request, tenantId 
 		DefaultBackendID *string  `json:"default_storage_id"`
 		StorageEngines   *[]string `json:"storage_engines"`
 		Status           *string  `json:"status"`
+		UploadPolicy     *domain.UploadPolicy `json:"upload_policy"`
 	}
 	if err := decodeBody(r, &req); err != nil {
 		httpx.Error(w, http.StatusBadRequest, "bad_request")
@@ -518,6 +519,7 @@ func (h *Handler) UpdateTenant(w http.ResponseWriter, r *http.Request, tenantId 
 	t, err := h.Tenants.Update(r.Context(), string(tenantId), tenant.Update{
 		Name: req.Name, QuotaBytes: req.QuotaBytes, QuotaObjects: req.QuotaObjects,
 		DefaultBackendID: req.DefaultBackendID, StorageEngines: req.StorageEngines, Status: req.Status,
+		UploadPolicy: req.UploadPolicy,
 	})
 	if err != nil {
 		httpx.WriteError(w, err)
@@ -693,16 +695,32 @@ func (h *Handler) GetFolder(w http.ResponseWriter, r *http.Request, folderId ser
 func (h *Handler) RenameFolder(w http.ResponseWriter, r *http.Request, folderId server.FolderId) {
 	p := principalOf(r)
 	var req struct {
-		Name string `json:"name"`
+		Name         string                `json:"name"`
+		UploadPolicy *domain.UploadPolicy  `json:"upload_policy"`
 	}
 	if err := decodeBody(r, &req); err != nil {
 		httpx.Error(w, http.StatusBadRequest, "bad_request")
 		return
 	}
-	f, err := h.Folders.Rename(r.Context(), p.TenantID, string(folderId), req.Name)
-	if err != nil {
-		httpx.WriteError(w, err)
-		return
+	var f *domain.Folder
+	if req.UploadPolicy != nil {
+		pol, err := h.Folders.SetPolicy(r.Context(), p.TenantID, string(folderId), req.UploadPolicy)
+		if err != nil {
+			httpx.WriteError(w, err)
+			return
+		}
+		f = pol
+	}
+	if req.Name != "" {
+		renamed, err := h.Folders.Rename(r.Context(), p.TenantID, string(folderId), req.Name)
+		if err != nil {
+			httpx.WriteError(w, err)
+			return
+		}
+		f = renamed
+	}
+	if f == nil {
+		f, _ = h.Folders.Get(r.Context(), p.TenantID, string(folderId))
 	}
 	data(w, http.StatusOK, f)
 }

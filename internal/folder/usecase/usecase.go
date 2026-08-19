@@ -79,8 +79,7 @@ func (u *usecase) Rename(ctx context.Context, tenantID, id, name string) (*domai
 	return f, nil
 }
 
-func (u *usecase) Move(ctx context.Context, tenantID, id, targetParentID string) (*domain.Folder, error) {
-	f, err := u.repo.GetByID(ctx, tenantID, id)
+func (u *usecase) Move(ctx context.Context, tenantID, id, targetParentID string) (*domain.Folder, error) {	f, err := u.repo.GetByID(ctx, tenantID, id)
 	if err != nil {
 		return nil, err
 	}
@@ -118,6 +117,18 @@ func (u *usecase) Move(ctx context.Context, tenantID, id, targetParentID string)
 
 func (u *usecase) Delete(ctx context.Context, tenantID, id string) error {
 	return u.repo.Delete(ctx, tenantID, id)
+}
+
+func (u *usecase) SetPolicy(ctx context.Context, tenantID, id string, p *domain.UploadPolicy) (*domain.Folder, error) {
+	f, err := u.repo.GetByID(ctx, tenantID, id)
+	if err != nil {
+		return nil, err
+	}
+	f.UploadPolicy = p
+	if err := u.repo.Update(ctx, f); err != nil {
+		return nil, err
+	}
+	return f, nil
 }
 
 func (u *usecase) ListChildren(ctx context.Context, tenantID string, parentID *string) ([]domain.Folder, error) {

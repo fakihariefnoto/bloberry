@@ -2,6 +2,19 @@ package domain
 
 import "time"
 
+// UploadPolicy controls which file extensions are allowed in a project (tenant)
+// or folder. Modes:
+//   - "default": use the global built-in blocklist (executable extensions)
+//   - "allow":   ONLY the listed extensions may be uploaded
+//   - "block":   the listed extensions are forbidden (in addition to the
+//     built-in blocklist)
+//
+// Resolution order on upload: folder policy > project policy > default.
+type UploadPolicy struct {
+	Mode       string   `bson:"mode" json:"mode"`
+	Extensions []string `bson:"extensions,omitempty" json:"extensions,omitempty"`
+}
+
 type User struct {
 	ID              string        `bson:"_id" json:"id"`
 	Email           string        `bson:"email" json:"email"`
@@ -59,6 +72,9 @@ type Tenant struct {
 	Status           string     `bson:"status" json:"status"`
 	Billing          map[string]interface{} `bson:"billing,omitempty" json:"billing,omitempty"`
 	CreatedAt        time.Time  `bson:"created_at" json:"created_at"`
+	// UploadPolicy controls which file extensions this project may store.
+	// Precedence: folder policy > project policy > global default blocklist.
+	UploadPolicy *UploadPolicy `bson:"upload_policy,omitempty" json:"upload_policy,omitempty"`
 }
 
 type Membership struct {
@@ -132,6 +148,9 @@ type Folder struct {
 	Depth     int       `bson:"depth" json:"depth"`
 	CreatedAt time.Time `bson:"created_at" json:"created_at"`
 	UpdatedAt time.Time `bson:"updated_at" json:"updated_at"`
+	// UploadPolicy overrides the project policy for this folder subtree.
+	// Resolution: folder policy > project policy > global default.
+	UploadPolicy *UploadPolicy `bson:"upload_policy,omitempty" json:"upload_policy,omitempty"`
 }
 
 type Object struct {

@@ -143,6 +143,27 @@ func (e Role) Valid() bool {
 	}
 }
 
+// Defines values for UploadPolicyMode.
+const (
+	Allow   UploadPolicyMode = "allow"
+	Block   UploadPolicyMode = "block"
+	Default UploadPolicyMode = "default"
+)
+
+// Valid indicates whether the value is a known member of the UploadPolicyMode enum.
+func (e UploadPolicyMode) Valid() bool {
+	switch e {
+	case Allow:
+		return true
+	case Block:
+		return true
+	case Default:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CreateBackendJSONBodyDriver.
 const (
 	Azblob CreateBackendJSONBodyDriver = "azblob"
@@ -341,6 +362,16 @@ type SignupRequest struct {
 	Password    string              `json:"password"`
 }
 
+// UploadPolicy Extension policy for a project or folder. Modes: "default" uses the built-in executable-extension blocklist; "allow" permits only the listed extensions; "block" forbids the listed extensions on top of the built-in list. Folder policy overrides project policy.
+type UploadPolicy struct {
+	// Extensions Dot-less extensions, e.g. ["png", "jpg", "pdf"]
+	Extensions *[]string         `json:"extensions,omitempty"`
+	Mode       *UploadPolicyMode `json:"mode,omitempty"`
+}
+
+// UploadPolicyMode defines model for UploadPolicy.Mode.
+type UploadPolicyMode string
+
 // ApplicationId defines model for ApplicationId.
 type ApplicationId = string
 
@@ -510,7 +541,10 @@ type CreateFolderJSONBody struct {
 
 // RenameFolderJSONBody defines parameters for RenameFolder.
 type RenameFolderJSONBody struct {
-	Name string `json:"name"`
+	Name *string `json:"name,omitempty"`
+
+	// UploadPolicy Extension policy for a project or folder. Modes: "default" uses the built-in executable-extension blocklist; "allow" permits only the listed extensions; "block" forbids the listed extensions on top of the built-in list. Folder policy overrides project policy.
+	UploadPolicy *UploadPolicy `json:"upload_policy,omitempty"`
 }
 
 // MoveFolderJSONBody defines parameters for MoveFolder.
@@ -641,6 +675,9 @@ type UpdateTenantJSONBody struct {
 	QuotaBytes       *int                        `json:"quota_bytes,omitempty"`
 	QuotaObjects     *int                        `json:"quota_objects,omitempty"`
 	Status           *UpdateTenantJSONBodyStatus `json:"status,omitempty"`
+
+	// UploadPolicy Extension policy for a project or folder. Modes: "default" uses the built-in executable-extension blocklist; "allow" permits only the listed extensions; "block" forbids the listed extensions on top of the built-in list. Folder policy overrides project policy.
+	UploadPolicy *UploadPolicy `json:"upload_policy,omitempty"`
 }
 
 // UpdateTenantJSONBodyStatus defines parameters for UpdateTenant.
@@ -917,7 +954,7 @@ type ServerInterface interface {
 	// GetFolder Get a folder
 	// (GET /folders/{folderId})
 	GetFolder(w http.ResponseWriter, r *http.Request, folderId FolderId)
-	// RenameFolder Rename a folder
+	// RenameFolder Rename a folder or update its upload policy
 	// (PATCH /folders/{folderId})
 	RenameFolder(w http.ResponseWriter, r *http.Request, folderId FolderId)
 	// ListFolderChildren List a folder's children (folders and objects)
@@ -1289,7 +1326,7 @@ func (_ Unimplemented) GetFolder(w http.ResponseWriter, r *http.Request, folderI
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
-// RenameFolder Rename a folder
+// RenameFolder Rename a folder or update its upload policy
 // (PATCH /folders/{folderId})
 func (_ Unimplemented) RenameFolder(w http.ResponseWriter, r *http.Request, folderId FolderId) {
 	w.WriteHeader(http.StatusNotImplemented)

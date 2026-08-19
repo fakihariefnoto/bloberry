@@ -25,7 +25,7 @@ async function activate() {
   }
   loading.value = true
   try {
-    const res = await api.post<AuthData>('/auth/activate', {
+    const res = await api.post<AuthData>('/v1/auth/activate', {
       email: email.value,
       password: password.value,
       display_name: displayName.value || undefined,

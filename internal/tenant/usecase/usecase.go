@@ -53,6 +53,10 @@ func (u *usecase) ListForUser(ctx context.Context, userID string) ([]domain.Tena
 	return u.repo.ListByUser(ctx, userID)
 }
 
+func (u *usecase) ListAll(ctx context.Context) ([]domain.Tenant, error) {
+	return u.repo.ListAll(ctx)
+}
+
 func (u *usecase) Update(ctx context.Context, tenantID string, upd tenant.Update) (*domain.Tenant, error) {
 	t, err := u.repo.GetByID(ctx, tenantID)
 	if err != nil {

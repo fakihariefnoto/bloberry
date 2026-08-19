@@ -12,6 +12,7 @@ interface Tenant {
   quota_bytes: number; quota_objects: number
   used_bytes: number; used_objects: number
   default_storage_id?: string
+  upload_policy?: { mode: string; extensions?: string[] }
 }
 interface Backend { id: string; name: string; driver: string; health_status: string }
 
@@ -27,6 +28,8 @@ const quotaObjects = ref('0')
 const saved = ref('')
 const error = ref('')
 const saving = ref(false)
+const policyMode = ref('default')
+const policyExts = ref('')
 
 async function load() {
   t.value = await api.get<Tenant>(`/tenants/${tenantId}`)
@@ -34,6 +37,8 @@ async function load() {
     quotaBytes.value = String(t.value.quota_bytes)
     quotaObjects.value = String(t.value.quota_objects)
     storageId.value = t.value.default_storage_id || ''
+    policyMode.value = t.value.upload_policy?.mode || 'default'
+    policyExts.value = (t.value.upload_policy?.extensions || []).join(', ')
   }
 }
 async function loadBackends() {
@@ -49,6 +54,10 @@ async function saveAll() {
       quota_bytes: Number(quotaBytes.value) || 0,
       quota_objects: Number(quotaObjects.value) || 0,
       default_storage_id: storageId.value || undefined,
+      upload_policy: {
+        mode: policyMode.value,
+        extensions: policyExts.value.split(',').map((e) => e.trim().toLowerCase()).filter(Boolean),
+      },
     })
     saved.value = 'Saved.'
     await load()
@@ -212,6 +221,25 @@ onMounted(() => { load(); loadBackends(); loadMembers() })
           <div class="grid grid-cols-2 gap-4">
             <AppInput v-model="quotaBytes" label="Quota (bytes, 0 = unlimited)" type="number" placeholder="0" />
             <AppInput v-model="quotaObjects" label="Object quota (0 = unlimited)" type="number" placeholder="0" />
+          </div>
+
+          <!-- Upload extension policy -->
+          <div class="flex flex-col gap-1.5">
+            <label class="text-xs font-medium text-[var(--color-text-muted)]">Allowed upload types</label>
+            <select v-model="policyMode" class="h-12 w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm outline-none focus:border-[var(--color-primary)] focus:border-2">
+              <option value="default">Default — block executable files (safe)</option>
+              <option value="allow">Allowlist — only the listed extensions</option>
+              <option value="block">Blocklist — forbid the listed extensions</option>
+            </select>
+            <input
+              v-model="policyExts"
+              :disabled="policyMode === 'default'"
+              placeholder="png, jpg, pdf, mp4 (comma-separated)"
+              class="h-12 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm outline-none focus:border-[var(--color-primary)] focus:border-2 disabled:opacity-50"
+            />
+            <p class="text-xs leading-relaxed text-[var(--color-text-muted)]">
+              Folder-level policies can override this per folder. Executable extensions (.php, .sh, .js, .html, .svg…) are never served inline.
+            </p>
           </div>
 
           <p v-if="error" class="rounded-[var(--radius-sm)] border border-[var(--color-error)] bg-[var(--color-error)]/10 px-3 py-2 text-xs text-[var(--color-error)]">{{ error }}</p>

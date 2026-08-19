@@ -468,7 +468,13 @@ func (h *Handler) ListTenants(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
-	ts, err := h.Tenants.ListForUser(r.Context(), p.ID)
+	var ts []domain.Tenant
+	var err error
+	if p.IsPlatformAdmin {
+		ts, err = h.Tenants.ListAll(r.Context())
+	} else {
+		ts, err = h.Tenants.ListForUser(r.Context(), p.ID)
+	}
 	if err != nil {
 		httpx.WriteError(w, err)
 		return

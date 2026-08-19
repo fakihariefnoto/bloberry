@@ -43,6 +43,13 @@ export const useTenantStore = defineStore('tenant', {
         this.currentId = this.list[0].id
         localStorage.setItem('bloberry.tenant', this.currentId)
       }
+      // The stored project may no longer exist (deleted) or the list may not
+      // contain it yet — always fall back to a valid id instead of showing
+      // "no access" after a refresh.
+      if (this.currentId && !this.list.some((t) => t.id === this.currentId) && this.list.length) {
+        this.currentId = this.list[0].id
+        localStorage.setItem('bloberry.tenant', this.currentId)
+      }
     },
     switchTo(id: string) {
       this.currentId = id

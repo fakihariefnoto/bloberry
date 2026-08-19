@@ -55,6 +55,7 @@ type Usecase interface {
 	Create(ctx context.Context, name, slug string, quotaBytes, quotaObjects int64, defaultBackendID string, ownerUserID string) (*domain.Tenant, error)
 	Get(ctx context.Context, tenantID string) (*domain.Tenant, error)
 	ListForUser(ctx context.Context, userID string) ([]domain.Tenant, error)
+	ListAll(ctx context.Context) ([]domain.Tenant, error)
 	Update(ctx context.Context, tenantID string, u Update) (*domain.Tenant, error)
 	CheckQuota(ctx context.Context, tenantID string, addBytes, addObjects int64) error
 	IncrementUsed(ctx context.Context, tenantID string, bytes, objects int64) error

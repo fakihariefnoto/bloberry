@@ -1,6 +1,6 @@
 <div align="center">
 
-![Bloberry](bloberry.png)
+<img src="bloberry-icon.png" alt="Bloberry" width="160" />
 
 # bloberry
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Mail, Lock, ArrowRight, Boxes, ArrowLeft } from 'lucide-vue-next'
+import { Mail, Lock, ArrowRight, ArrowLeft } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
 import AppInput from '../components/ui/AppInput.vue'
 import AppButton from '../components/ui/AppButton.vue'
@@ -55,9 +55,7 @@ async function submit() {
 
       <!-- Brand mark -->
       <div class="mb-6 flex flex-col items-center text-center">
-        <span class="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-accent-deep)] shadow-[0_0_24px_rgba(139,125,235,0.35)]">
-          <Boxes class="h-6 w-6 text-[var(--color-on-primary)]" />
-        </span>
+        <img src="/bloberry-icon.png" alt="Bloberry" class="h-12 w-12 rounded-xl object-cover shadow-[0_0_24px_rgba(139,125,235,0.35)]" />
         <h1 class="mt-4 text-2xl font-bold tracking-tight text-[var(--color-text)]">Welcome back</h1>
         <p class="mt-1.5 text-sm text-[var(--color-text-muted)]">Sign in to your storage.</p>
       </div>

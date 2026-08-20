@@ -53,9 +53,7 @@ function primaryCta() {
     <header class="sticky top-0 z-30 border-b border-white/5 bg-[#07060f]/70 backdrop-blur-xl">
       <div class="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
         <a href="#" class="flex items-center gap-2.5">
-          <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-[#8b7deb] to-[#2a1a8f] shadow-[0_0_24px_rgba(139,125,235,0.4)]">
-            <Boxes class="h-4 w-4 text-white" />
-          </span>
+          <img src="/bloberry-icon.png" alt="Bloberry" class="h-8 w-8 rounded-lg object-cover" />
           <span class="text-[15px] font-semibold tracking-tight">Bloberry</span>
         </a>
         <nav class="hidden items-center gap-8 text-sm text-white/60 md:flex">
@@ -333,9 +331,7 @@ function primaryCta() {
     <footer class="border-t border-white/5">
       <div class="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 py-8 md:flex-row">
         <div class="flex items-center gap-2.5">
-          <span class="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-[#8b7deb] to-[#2a1a8f]">
-            <Boxes class="h-3.5 w-3.5 text-white" />
-          </span>
+          <img src="/bloberry-icon.png" alt="Bloberry" class="h-7 w-7 rounded-md object-cover" />
           <span class="text-sm font-semibold">Bloberry</span>
         </div>
         <p class="text-xs text-white/40">Storage-agnostic object service — self-hosted, single binary.</p>

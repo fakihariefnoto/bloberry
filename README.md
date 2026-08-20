@@ -1,5 +1,7 @@
 <div align="center">
 
+![Bloberry](bloberry.png)
+
 # bloberry
 
 **One self-hosted object service. Six storage backends. Every device you own.**

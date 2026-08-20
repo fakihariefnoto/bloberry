@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Mail, Lock, User, Building2, AtSign, ArrowRight, ArrowLeft, CheckCircle2, Boxes, HardDrive } from 'lucide-vue-next'
+import { Mail, Lock, User, Building2, AtSign, ArrowRight, ArrowLeft, CheckCircle2, HardDrive } from 'lucide-vue-next'
 import { api } from '../lib/api'
 import AppInput from '../components/ui/AppInput.vue'
 import AppButton from '../components/ui/AppButton.vue'
@@ -86,9 +86,7 @@ const goLogin = () => router.push({ name: 'login' })
     <header class="border-b border-[var(--color-border)]">
       <div class="mx-auto flex h-16 max-w-2xl items-center justify-between px-6">
         <div class="flex items-center gap-2.5">
-          <span class="flex h-8 w-8 items-center justify-center rounded-[var(--radius-md)] bg-[var(--color-primary)]">
-            <Boxes class="h-4 w-4 text-[var(--color-on-primary)]" />
-          </span>
+          <img src="/bloberry-icon.png" alt="Bloberry" class="h-8 w-8 rounded-[var(--radius-md)] object-cover" />
           <span class="text-sm font-semibold tracking-tight text-[var(--color-text)]">Bloberry</span>
         </div>
         <p class="text-xs text-[var(--color-text-muted)]">One-time setup</p>

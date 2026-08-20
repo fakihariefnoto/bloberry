@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Mail, KeyRound, ArrowRight, Boxes } from 'lucide-vue-next'
+import { Mail, KeyRound, ArrowRight } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
 import AppInput from '../components/ui/AppInput.vue'
 import AppButton from '../components/ui/AppButton.vue'
@@ -50,9 +50,7 @@ async function verify() {
   <div class="flex min-h-screen items-center justify-center bg-[var(--color-background)] px-4">
     <div class="w-full max-w-sm">
       <div class="mb-8 text-center">
-        <span class="mx-auto flex h-12 w-12 items-center justify-center rounded-[var(--radius-lg)] bg-[var(--color-primary-subtle)]">
-          <Boxes class="h-6 w-6 text-[var(--color-primary)]" />
-        </span>
+        <img src="/bloberry-icon.png" alt="Bloberry" class="mx-auto h-12 w-12 rounded-[var(--radius-lg)] object-cover" />
         <h1 class="mt-4 text-3xl font-bold tracking-tight text-[var(--color-text)]">Email login code</h1>
         <p class="mt-2 text-sm text-[var(--color-text-muted)]">We'll email you a 6-digit code.</p>
       </div>

@@ -2,7 +2,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
-  Boxes, FolderOpen, Share2, ListChecks, KeyRound, Users, ScrollText,
+  FolderOpen, Share2, ListChecks, KeyRound, Users, ScrollText,
   Gauge, Settings, Building2, HardDrive, BarChart3, LogOut, User, Smartphone, ChevronDown, Key, ArrowLeftRight, Check,
 } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
@@ -108,9 +108,7 @@ const pageTitle = computed(() => {
     <!-- Sidebar -->
     <aside class="flex w-[260px] flex-col border-r border-[var(--color-border)] bg-[var(--color-surface)]">
       <div class="flex h-16 items-center gap-2.5 border-b border-[var(--color-border)] px-5">
-        <span class="flex h-8 w-8 items-center justify-center rounded-[var(--radius-md)] bg-[var(--color-primary)] shadow-[var(--shadow-sm)]">
-          <Boxes class="h-4 w-4 text-[var(--color-on-primary)]" />
-        </span>
+        <img src="/bloberry-icon.png" alt="Bloberry" class="h-8 w-8 rounded-[var(--radius-md)] object-cover" />
         <div class="flex flex-col">
           <span class="text-sm font-semibold tracking-tight text-[var(--color-text)]">Bloberry</span>
         </div>

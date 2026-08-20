@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Mail, ArrowRight, Boxes, CheckCircle2 } from 'lucide-vue-next'
+import { Mail, ArrowRight, CheckCircle2 } from 'lucide-vue-next'
 import { api } from '../lib/api'
 import AppInput from '../components/ui/AppInput.vue'
 import AppButton from '../components/ui/AppButton.vue'
@@ -28,9 +28,7 @@ async function submit() {
   <div class="flex min-h-screen items-center justify-center bg-[var(--color-background)] px-4">
     <div class="w-full max-w-sm">
       <div class="mb-8 text-center">
-        <span class="mx-auto flex h-12 w-12 items-center justify-center rounded-[var(--radius-lg)] bg-[var(--color-primary-subtle)]">
-          <Boxes class="h-6 w-6 text-[var(--color-primary)]" />
-        </span>
+        <img src="/bloberry-icon.png" alt="Bloberry" class="mx-auto h-12 w-12 rounded-[var(--radius-lg)] object-cover" />
         <h1 class="mt-4 text-3xl font-bold tracking-tight text-[var(--color-text)]">Reset your password</h1>
         <p v-if="!sent" class="mt-2 text-sm text-[var(--color-text-muted)]">Enter your email and we'll send a reset link.</p>
         <p v-else class="mt-2 text-sm text-[var(--color-success)]">If that email exists, a reset link is on its way.</p>

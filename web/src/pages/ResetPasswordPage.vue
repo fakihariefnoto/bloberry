@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Lock, ArrowRight, Boxes } from 'lucide-vue-next'
+import { Lock, ArrowRight } from 'lucide-vue-next'
 import { api } from '../lib/api'
 import AppInput from '../components/ui/AppInput.vue'
 import AppButton from '../components/ui/AppButton.vue'
@@ -35,9 +35,7 @@ async function submit() {
   <div class="flex min-h-screen items-center justify-center bg-[var(--color-background)] px-4">
     <div class="w-full max-w-sm">
       <div class="mb-8 text-center">
-        <span class="mx-auto flex h-12 w-12 items-center justify-center rounded-[var(--radius-lg)] bg-[var(--color-primary-subtle)]">
-          <Boxes class="h-6 w-6 text-[var(--color-primary)]" />
-        </span>
+        <img src="/bloberry-icon.png" alt="Bloberry" class="mx-auto h-12 w-12 rounded-[var(--radius-lg)] object-cover" />
         <h1 class="mt-4 text-3xl font-bold tracking-tight text-[var(--color-text)]">Set a new password</h1>
       </div>
 

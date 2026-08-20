@@ -1,6 +1,7 @@
 bin/
 bloberry-server
 bloberry-desktop
+.plan/
 .env
 *.log
 .DS_Store

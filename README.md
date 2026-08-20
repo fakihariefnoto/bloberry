@@ -12,6 +12,10 @@ Bloberry gives your apps a single S3-style API, real folders, per-folder permiss
 
 <br/>
 
+> **⚠️ Status: early development.** The API and dashboard are functional, but things are still moving fast — expect breaking changes, rough edges, and missing features. Not yet recommended for production workloads.
+
+<br/>
+
 Go · Vue 3 · Wails · Flutter · OpenAPI · MongoDB · Redis
 
 </div>

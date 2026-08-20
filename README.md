@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="bloberry-icon.png" alt="Bloberry" width="160" />
+<img src="bloberry.png" alt="Bloberry" width="640" />
 
 # bloberry
 

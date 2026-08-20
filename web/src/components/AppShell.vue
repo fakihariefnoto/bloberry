@@ -108,10 +108,7 @@ const pageTitle = computed(() => {
     <!-- Sidebar -->
     <aside class="flex w-[260px] flex-col border-r border-[var(--color-border)] bg-[var(--color-surface)]">
       <div class="flex h-16 items-center gap-2.5 border-b border-[var(--color-border)] px-5">
-        <img src="/bloberry-icon.png" alt="Bloberry" class="h-8 w-8 rounded-[var(--radius-md)] object-cover" />
-        <div class="flex flex-col">
-          <span class="text-sm font-semibold tracking-tight text-[var(--color-text)]">Bloberry</span>
-        </div>
+        <img src="/bloberry.png" alt="Bloberry" class="h-8 w-auto" />
       </div>
 
       <div class="px-3 py-3">

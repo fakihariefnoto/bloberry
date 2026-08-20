@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   ArrowRight, Boxes, KeyRound, ShieldCheck, Server, Globe,
@@ -14,8 +14,9 @@ const checking = ref(true)
 
 onMounted(async () => {
   // Router guard redirects authenticated users to /app/files before this
-  // mounts, so the landing never renders for them.
-  document.documentElement.dataset.theme = 'dark'
+  // mounts, so the landing never renders for them. The landing is fully
+  // self-styled dark (hardcoded colors) and must NOT mutate the global
+  // token theme — doing so flips login/setup between light and dark.
   try {
     const st = await api.get<{ needs_setup: boolean }>('/setup/status')
     needsSetup.value = st.needs_setup
@@ -29,10 +30,6 @@ onMounted(async () => {
   } finally {
     checking.value = false
   }
-})
-
-onUnmounted(() => {
-  delete document.documentElement.dataset.theme
 })
 
 function primaryCta() {
